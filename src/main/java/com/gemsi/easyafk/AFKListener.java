@@ -9,6 +9,7 @@ import com.mojang.logging.LogUtils;
 import org.slf4j.Logger;
 import net.neoforged.neoforge.common.NeoForge;
 import com.gemsi.easyafk.commands.AFKCommands;
+import com.gemsi.easyafk.afkplayer.AFKPlayer;
 import java.util.UUID;
 
 
@@ -24,7 +25,10 @@ public class AFKListener {
             ServerPlayer player = (ServerPlayer) event.getEntity();
             UUID playerUUID = player.getUUID();
             boolean playerAfkStatus = AFKCommands.getPlayerAFKStatus(playerUUID);
-            if(playerAfkStatus) AFKCommands.removeAFKStatus(playerUUID);
+            if(playerAfkStatus) {
+                AFKPlayer.removeInvulnerability(player);
+                AFKCommands.removeAFKStatus(playerUUID);
+            };
         }
     }
 

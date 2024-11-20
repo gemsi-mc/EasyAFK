@@ -15,8 +15,10 @@ import com.mojang.logging.LogUtils;
 
 import com.gemsi.easyafk.afkplayer.AFKPlayer;
 
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.Set;
+import java.util.Map;
+import java.util.UUID;
 
 @Mod("easyafk")
 public class AFKCommands {
@@ -24,7 +26,7 @@ public class AFKCommands {
     private static final Logger LOGGER = LogUtils.getLogger();
 
     // In-memory map to track AFK status
-    private static final Map<UUID, Boolean> afkStatus = new HashMap<>();
+    public static final Map<UUID, Boolean> afkStatus = new HashMap<>();
 
     // Custom tag for persistent storage
     private static final String AFK_TAG = "easyafk:is_afk";
@@ -51,10 +53,12 @@ public class AFKCommands {
                                 if (playerAfkStatus) {
                                     // Add player to the map with true status (AFK)
                                     afkStatus.put(playerUUID, true);
+                                    AFKPlayer.applyInvulnerability(player);
                                     LOGGER.info(player.getName().getString() + " is now in AFK mode.");
                                 } else {
                                     // Remove player from the map if they are no longer AFK
                                     afkStatus.remove(playerUUID);
+                                    AFKPlayer.removeInvulnerability(player);
                                     LOGGER.info(player.getName().getString() + " is no longer in AFK mode.");
                                 }
 
@@ -71,9 +75,7 @@ public class AFKCommands {
                                         false
                                 );
 
-                                return 1; // Return success code
-                                    AFKPlayer.applyInvulnerability(player);
-                                    AFKPlayer.removeInvulnerability(player);
+                                return 1;
                             } else {
                                 context.getSource().sendFailure(
                                         Component.literal("This command can only be used by players!")
@@ -84,7 +86,6 @@ public class AFKCommands {
         );
     }
 
-    }
 
     public static boolean getPlayerAFKStatus(UUID playerUUID) {
         return afkStatus.containsKey(playerUUID);
