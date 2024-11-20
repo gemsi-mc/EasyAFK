@@ -9,8 +9,15 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.level.ServerPlayer;
 
+import com.gemsi.easyafk.afkplayer.AFKPlayer;
+
+import java.util.HashSet;
+import java.util.Set;
+
 @Mod("easyafk")
 public class AFKCommands {
+    public static final Set<ServerPlayer> afkPlayers = new HashSet<>();
+
     public AFKCommands() {
         NeoForge.EVENT_BUS.addListener(this::init);
     }
@@ -18,28 +25,35 @@ public class AFKCommands {
     private void init(RegisterCommandsEvent event) {
         CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
 
-
         event.getDispatcher().register(
                 Commands.literal("afk")
                         .executes(context -> {
                             ServerPlayer player = context.getSource().getPlayerOrException();
                             if (player != null) {
-                                // Send a message with the player's name
-                                String playerName = player.getName().getString();
-                                context.getSource().sendSuccess(
-                                        () -> Component.literal(playerName + ", you are now in AFK mode."),
-                                        false
-                                );
-                                return 1; // Return success code
+                                if (afkPlayers.contains(player)) {
+                                    afkPlayers.remove(player);
+                                    AFKPlayer.removeInvulnerability(player);
+                                    context.getSource().sendSuccess(
+                                            () -> Component.literal(player.getName().getString() + ", you are no longer AFK."),
+                                            false
+                                    );
+                                } else {
+                                    afkPlayers.add(player);
+                                    AFKPlayer.applyInvulnerability(player);
+                                    context.getSource().sendSuccess(
+                                            () -> Component.literal(player.getName().getString() + ", you are now AFK."),
+                                            false
+                                    );
+                                }
+                                return 1;
                             } else {
-                                // Handle case where no player is associated (e.g., console execution)
                                 context.getSource().sendFailure(
                                         Component.literal("This command can only be used by players!")
                                 );
-                                return 0; // Return failure code
+                                return 0;
                             }
-                        }));
-
+                        })
+        );
     }
-    
+
 }
