@@ -13,11 +13,10 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.level.ServerPlayer;
 import com.mojang.logging.LogUtils;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import com.gemsi.easyafk.afkplayer.AFKPlayer;
 
-
+import java.util.HashSet;
+import java.util.Set;
 
 @Mod("easyafk")
 public class AFKCommands {
@@ -37,7 +36,6 @@ public class AFKCommands {
 
     private void init(RegisterCommandsEvent event) {
         CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
-
 
         event.getDispatcher().register(
                 Commands.literal("afk")
@@ -74,14 +72,17 @@ public class AFKCommands {
                                 );
 
                                 return 1; // Return success code
+                                    AFKPlayer.applyInvulnerability(player);
+                                    AFKPlayer.removeInvulnerability(player);
                             } else {
-                                // Handle case where no player is associated (e.g., console execution)
                                 context.getSource().sendFailure(
                                         Component.literal("This command can only be used by players!")
                                 );
-                                return 0; // Return failure code
+                                return 0;
                             }
-                        }));
+                        })
+        );
+    }
 
     }
 
