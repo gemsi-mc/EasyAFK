@@ -1,5 +1,7 @@
 package com.gemsi.easyafk.commands;
 
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 import org.slf4j.Logger;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -70,8 +72,13 @@ public class AFKCommands {
                                 String message = playerAfkStatus
                                         ? "You are now in AFK mode."
                                         : "You are no longer in AFK mode.";
+
+                                // Add color to the message based on AFK status
+                                Component coloredMessage = Component.literal(message)
+                                        .setStyle(Style.EMPTY.withColor(playerAfkStatus ? TextColor.fromRgb(0x00FF00) : TextColor.fromRgb(0xFF0000))); // Green for AFK, Red for not AFK
+
                                 context.getSource().sendSuccess(
-                                        () -> Component.literal(message),
+                                        () -> coloredMessage,
                                         false
                                 );
 
@@ -79,6 +86,7 @@ public class AFKCommands {
                             } else {
                                 context.getSource().sendFailure(
                                         Component.literal("This command can only be used by players!")
+                                                .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF0000))) // Red color for the error message
                                 );
                                 return 0;
                             }
