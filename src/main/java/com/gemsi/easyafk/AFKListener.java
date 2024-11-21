@@ -1,28 +1,19 @@
-package com.gemsi.easyafk.listener;
+package com.gemsi.easyafk;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.network.chat.Component;
 import net.neoforged.fml.common.Mod;
 import com.mojang.logging.LogUtils;
 import org.slf4j.Logger;
-import net.neoforged.neoforge.common.NeoForge;
-import com.gemsi.easyafk.commands.AFKCommands;
-import com.gemsi.easyafk.afkplayer.AFKPlayer;
-import net.minecraft.server.level.ServerPlayer;
+
 import java.util.UUID;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
-import net.minecraft.world.item.ItemStack;
 
 
 @Mod("easyafk")

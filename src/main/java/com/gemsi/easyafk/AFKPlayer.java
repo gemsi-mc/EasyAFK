@@ -1,10 +1,6 @@
-package com.gemsi.easyafk.afkplayer;
+package com.gemsi.easyafk;
 
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.LivingEntity;
-import net.neoforged.bus.api.SubscribeEvent;
-import java.util.UUID;
-import com.gemsi.easyafk.commands.AFKCommands;
 
 public class AFKPlayer {
 

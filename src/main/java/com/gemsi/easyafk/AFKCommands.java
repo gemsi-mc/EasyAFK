@@ -1,4 +1,4 @@
-package com.gemsi.easyafk.commands;
+package com.gemsi.easyafk;
 
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
@@ -10,15 +10,12 @@ import com.mojang.brigadier.CommandDispatcher;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.level.ServerPlayer;
 import com.mojang.logging.LogUtils;
 
-import com.gemsi.easyafk.afkplayer.AFKPlayer;
 
 import java.util.HashMap;
-import java.util.Set;
 import java.util.Map;
 import java.util.UUID;
 
