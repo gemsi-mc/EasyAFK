@@ -1,19 +1,15 @@
 package com.gemsi.easyafk;
 
-import net.minecraft.network.chat.Style;
-import net.minecraft.network.chat.TextColor;
+import net.minecraft.core.BlockPos;
 import org.slf4j.Logger;
 import net.minecraft.commands.Commands;
-import net.minecraft.network.chat.Component;
 import net.neoforged.fml.common.Mod;
 import com.mojang.brigadier.CommandDispatcher;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.level.ServerPlayer;
 import com.mojang.logging.LogUtils;
-
 
 import java.util.HashMap;
 import java.util.Map;
@@ -48,6 +44,7 @@ public class AFKCommands {
                             boolean playerAfkStatus = !getPlayerAFKStatus(playerUUID);
 
                             if (playerAfkStatus) {
+
                                 // Add player to the map with true status (AFK)
                                 AFKPlayer.applyAFK(player);
                                 LOGGER.info(player.getName().getString() + " is now in AFK mode.");

@@ -1,5 +1,6 @@
 package com.gemsi.easyafk;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -14,7 +15,7 @@ import java.util.UUID;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import java.util.HashMap;
 import java.util.Map;
-import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+
 @Mod("easyafk")
 public class AFKListener {
 
@@ -25,10 +26,28 @@ public class AFKListener {
 
     private static final Map<UUID, Integer> playerAFKTime = new HashMap<>(); // Tracks AFK time
 
+    private static final Map<UUID, BlockPos> frozenPlayers = new HashMap<>();
+
+
+    // Toggle AFK status
+    public static boolean toggleAfk(ServerPlayer player) {
+        UUID playerUUID = player.getUUID();
+        boolean isAfk = !AFKCommands.afkStatus.getOrDefault(playerUUID, false);
+        AFKCommands.afkStatus.put(playerUUID, isAfk);
+        return isAfk;
+    }
+
+    // Freeze the player
+    public static void freezePlayer(UUID playerUUID, BlockPos position) {
+        frozenPlayers.put(playerUUID, position);
+    }
+
+    // Unfreeze the player
+    public static void unfreezePlayer(UUID playerUUID) {
+        frozenPlayers.remove(playerUUID);
+    }
+
     private final Map<ServerPlayer, Long> lastCheckTime = new HashMap<>();
-
-
-
     @SubscribeEvent
     public void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
 
@@ -53,8 +72,24 @@ public class AFKListener {
             UUID playerUUID = serverPlayer.getUUID();
 
             boolean playerAfkStatus = AFKCommands.getPlayerAFKStatus(playerUUID);
+
             if (!playerAfkStatus) {
                 checkAFKTime(serverPlayer);
+            }
+            else {
+                BlockPos frozenPos = frozenPlayers.get(playerUUID);
+
+                if (frozenPos != null) {
+
+                    // Teleport the player back to their frozen position
+                    serverPlayer.connection.teleport(
+                            frozenPos.getX() + 0.5,
+                            frozenPos.getY(),
+                            frozenPos.getZ() + 0.5,
+                            serverPlayer.getYRot(),
+                            serverPlayer.getXRot()
+                    );
+                }
             }
 
         }
@@ -178,5 +213,18 @@ public class AFKListener {
     }
 
 
+    public static void preventMovement(ServerPlayer serverPlayer) {
+        UUID playerUUID = serverPlayer.getUUID();
+        if (AFKCommands.afkStatus.getOrDefault(playerUUID, false)) {
+            // Record the player's current position when they go AFK
+            BlockPos currentPos = serverPlayer.blockPosition();
+            frozenPlayers.put(playerUUID, currentPos);
 
+            // Teleport the player back to their current position every tick to freeze them
+            serverPlayer.connection.teleport(currentPos.getX() + 0.5, currentPos.getY(), currentPos.getZ() + 0.5, serverPlayer.getYRot(), serverPlayer.getXRot());
+        } else {
+            // Remove the player from the frozen list if they're no longer AFK
+            frozenPlayers.remove(playerUUID);
+        }
+    }
 }

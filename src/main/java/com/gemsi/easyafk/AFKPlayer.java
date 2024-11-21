@@ -1,5 +1,6 @@
 package com.gemsi.easyafk;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.OutgoingChatMessage;
 import net.minecraft.network.chat.Style;
@@ -25,9 +26,14 @@ public class AFKPlayer {
 
     public static void applyAFK(ServerPlayer player) {
         UUID playerUUID = player.getUUID();
+
+        BlockPos currentPos = player.blockPosition();
         applyInvulnerability(player);
 
         AFKCommands.addPlayerAFK(playerUUID);
+        AFKListener.freezePlayer(playerUUID, currentPos);
+
+        AFKListener.preventMovement(player);
 
         String message = "You are now in AFK mode.";
 
@@ -46,7 +52,7 @@ public class AFKPlayer {
         AFKCommands.removeAFKStatus(playerUUID);
 
         String message = "You are no longer in AFK mode.";
-
+        AFKListener.unfreezePlayer(playerUUID);
         Component coloredMessage = Component.literal(message)
                 .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF0000))); // Green for AFK, Red for not AFK
 

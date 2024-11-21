@@ -53,5 +53,4 @@ public class EasyAFK
         LOGGER.info("HELLO from server starting");
     }
 
-
 }
