@@ -1,9 +1,12 @@
 package com.gemsi.easyafk;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.event.entity.living.LivingEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -14,6 +17,7 @@ import net.neoforged.neoforge.event.level.BlockEvent;
 import java.util.UUID;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import java.util.HashMap;
+import net.minecraft.network.chat.Component;
 import java.util.Map;
 
 @Mod("easyafk")
@@ -24,42 +28,35 @@ public class AFKListener {
     private static final int AFK_THRESHOLD = 5;
     private static final double MOVEMENT_THRESHOLD = 0.1;
 
+    private static final double FREEZE_CHECK = 500;
+
     private static final Map<UUID, Integer> playerAFKTime = new HashMap<>(); // Tracks AFK time
 
     private static final Map<UUID, BlockPos> frozenPlayers = new HashMap<>();
 
 
-    // Toggle AFK status
-    public static boolean toggleAfk(ServerPlayer player) {
-        UUID playerUUID = player.getUUID();
-        boolean isAfk = !AFKCommands.afkStatus.getOrDefault(playerUUID, false);
-        AFKCommands.afkStatus.put(playerUUID, isAfk);
-        return isAfk;
-    }
 
-    // Freeze the player
     public static void freezePlayer(UUID playerUUID, BlockPos position) {
         frozenPlayers.put(playerUUID, position);
     }
 
-    // Unfreeze the player
+
     public static void unfreezePlayer(UUID playerUUID) {
         frozenPlayers.remove(playerUUID);
     }
+
+    private final Map<ServerPlayer, Long> lastFreezeCheck = new HashMap<>();
 
     private final Map<ServerPlayer, Long> lastCheckTime = new HashMap<>();
     @SubscribeEvent
     public void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
 
-        if (event.getEntity() instanceof ServerPlayer) {
-            ServerPlayer player = (ServerPlayer) event.getEntity();
+        if (event.getEntity() instanceof ServerPlayer player) {
             UUID playerUUID = player.getUUID();
             boolean playerAfkStatus = AFKCommands.getPlayerAFKStatus(playerUUID);
             resetAFKTimer(playerUUID);
             if (playerAfkStatus) {
-                AFKPlayer.removeInvulnerability(player);
-                AFKCommands.removeAFKStatus(playerUUID);
-
+                AFKPlayer.removeAFK(player);
             }
 
         }
@@ -77,22 +74,39 @@ public class AFKListener {
                 checkAFKTime(serverPlayer);
             }
             else {
-                BlockPos frozenPos = frozenPlayers.get(playerUUID);
+                freezePlayer(serverPlayer);
+            }
 
-                if (frozenPos != null) {
-
-                    // Teleport the player back to their frozen position
-                    serverPlayer.connection.teleport(
-                            frozenPos.getX() + 0.5,
-                            frozenPos.getY(),
-                            frozenPos.getZ() + 0.5,
-                            serverPlayer.getYRot(),
-                            serverPlayer.getXRot()
-                    );
-                }
+            if(!AFKCommands.afkStatus.isEmpty()) {
+                serverPlayer.refreshTabListName();
             }
 
         }
+    }
+
+    private void freezePlayer(ServerPlayer serverPlayer) {
+
+        UUID playerUUID = serverPlayer.getUUID();
+
+        long currentTime = System.currentTimeMillis();
+        long lastTime = lastFreezeCheck.getOrDefault(serverPlayer, 0L);
+        if (currentTime - lastTime >= FREEZE_CHECK) {
+            BlockPos frozenPos = frozenPlayers.get(playerUUID);
+            if (frozenPos != null) {
+                // Teleport the player back to their frozen position
+                serverPlayer.connection.teleport(
+                        frozenPos.getX() + 0.5,
+                        frozenPos.getY(),
+                        frozenPos.getZ() + 0.5,
+                        serverPlayer.getYRot(),
+                        serverPlayer.getXRot()
+                );
+            }
+            lastFreezeCheck.put(serverPlayer, currentTime);
+        }
+
+
+
     }
 
     private void checkAFKTime(ServerPlayer serverPlayer) {
@@ -114,11 +128,11 @@ public class AFKListener {
 
                 if (currentAFKTime >= AFK_THRESHOLD) {
                     AFKPlayer.applyAFK(serverPlayer);
-                    LOGGER.info(serverPlayer.getName().getString() + " has been AFK for " + (currentAFKTime) + " seconds.");
                 }
 
             }
             lastCheckTime.put(serverPlayer, currentTime);
+
         }
 
     }
@@ -156,7 +170,7 @@ public class AFKListener {
         return false;
     }
 
-    private void resetAFKTimer(UUID playerUUID) {
+    public static void resetAFKTimer(UUID playerUUID) {
         playerAFKTime.put(playerUUID, 0);
     }
 
@@ -167,9 +181,7 @@ public class AFKListener {
             Player player = event.getPlayer();
             UUID playerUUID = player.getUUID();
 
-            LOGGER.info(player.getName().getString() + " is interacting with block");
             resetAFKTimer(playerUUID);
-            // Additional logic here, e.g., marking the player as AFK-inactive or tracking breakage
         }
     }
 
@@ -180,9 +192,7 @@ public class AFKListener {
             Player player = (Player) event.getEntity();
             UUID playerUUID = player.getUUID();
 
-            LOGGER.info(player.getName().getString() + " is place a block");
             resetAFKTimer(playerUUID);
-            // Additional logic here, e.g., marking the player as AFK-inactive or tracking breakage
         }
     }
 
@@ -193,9 +203,8 @@ public class AFKListener {
             Player player = event.getPlayer();
             UUID playerUUID = player.getUUID();
 
-            LOGGER.info(player.getName().getString() + " is modifying");
             resetAFKTimer(playerUUID);
-            // Additional logic here, e.g., marking the player as AFK-inactive or tracking breakage
+
         }
     }
 
@@ -206,12 +215,39 @@ public class AFKListener {
             Player player = event.getEntity();
             UUID playerUUID = player.getUUID();
 
-            LOGGER.info(player.getName().getString() + " is crafting");
             resetAFKTimer(playerUUID);
-            // Additional logic here, e.g., marking the player as AFK-inactive or tracking breakage
+
         }
     }
 
+    @SubscribeEvent
+    public void onPlayerJump(LivingEvent.LivingJumpEvent event) {
+        if (event.getEntity() instanceof ServerPlayer) {
+            ServerPlayer player = (ServerPlayer) event.getEntity();
+            UUID playerUUID = player.getUUID();
+            boolean isPlayerAFK = AFKCommands.getPlayerAFKStatus(playerUUID);
+
+            if(isPlayerAFK) {
+                AFKPlayer.removeAFK(player);
+            }
+
+        }
+    }
+
+    @SubscribeEvent
+    public void onTabListDecorate(PlayerEvent.TabListNameFormat event) {
+        LOGGER.info("Getting tab list");
+        ServerPlayer player = (ServerPlayer) event.getEntity();
+
+        boolean isPlayerAFK = AFKCommands.getPlayerAFKStatus(player.getUUID());
+        if (isPlayerAFK) {
+            String playerName = player.getName().getString();
+
+            Component tablistName = Component.literal(playerName + " is away.")
+                    .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x808080)));
+            event.setDisplayName(tablistName);
+        }
+    }
 
     public static void preventMovement(ServerPlayer serverPlayer) {
         UUID playerUUID = serverPlayer.getUUID();

@@ -6,6 +6,7 @@ import net.minecraft.network.chat.OutgoingChatMessage;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
 import java.awt.*;
 import java.util.UUID;
@@ -25,6 +26,7 @@ public class AFKPlayer {
     }
 
     public static void applyAFK(ServerPlayer player) {
+
         UUID playerUUID = player.getUUID();
 
         BlockPos currentPos = player.blockPosition();
@@ -43,12 +45,18 @@ public class AFKPlayer {
 
         player.sendSystemMessage(coloredMessage);
 
+        String playerName = player.getName().getString();
+        Component serverMessage = Component.literal(playerName + " is away.")
+                .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x808080)));
+        assert ServerLifecycleHooks.getCurrentServer() != null;
+        ServerLifecycleHooks.getCurrentServer().getPlayerList().broadcastSystemMessage(serverMessage, false);
+
     }
 
     public static void removeAFK(ServerPlayer player) {
         UUID playerUUID = player.getUUID();
         removeInvulnerability(player);
-
+        AFKListener.resetAFKTimer(playerUUID);
         AFKCommands.removeAFKStatus(playerUUID);
 
         String message = "You are no longer in AFK mode.";
@@ -58,6 +66,13 @@ public class AFKPlayer {
 
 
         player.sendSystemMessage(coloredMessage);
+
+        String playerName = player.getName().getString();
+        Component serverMessage = Component.literal(playerName + " is back.")
+                .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x808080)));
+
+        assert ServerLifecycleHooks.getCurrentServer() != null;
+        ServerLifecycleHooks.getCurrentServer().getPlayerList().broadcastSystemMessage(serverMessage, false);
 
     }
 
