@@ -37,14 +37,6 @@ public class AFKPlayer {
 
         AFKListener.preventMovement(player);
 
-        //String message = "You are now in AFK mode.";
-
-        //Component coloredMessage = Component.literal(message)
-        //        .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x00FF00))); // Green for AFK, Red for not AFK
-
-
-        //player.sendSystemMessage(coloredMessage);
-
         String playerName = player.getName().getString();
         Component serverMessage = Component.literal(playerName + " is now AFK.")
                 .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF5050)));
@@ -58,14 +50,6 @@ public class AFKPlayer {
         removeInvulnerability(player);
         AFKListener.resetAFKTimer(playerUUID);
         AFKCommands.removeAFKStatus(playerUUID);
-
-        //String message = "You are no longer in AFK mode.";
-        //AFKListener.unfreezePlayer(playerUUID);
-        //Component coloredMessage = Component.literal(message)
-        //        .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF0000))); // Green for AFK, Red for not AFK
-
-
-        //player.sendSystemMessage(coloredMessage);
 
         String playerName = player.getName().getString();
         Component serverMessage = Component.literal(playerName + " is no longer AFK.")
