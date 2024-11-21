@@ -1,28 +1,19 @@
-package com.gemsi.easyafk.listener;
+package com.gemsi.easyafk;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.network.chat.Component;
 import net.neoforged.fml.common.Mod;
 import com.mojang.logging.LogUtils;
 import org.slf4j.Logger;
-import net.neoforged.neoforge.common.NeoForge;
-import com.gemsi.easyafk.commands.AFKCommands;
-import com.gemsi.easyafk.afkplayer.AFKPlayer;
-import net.minecraft.server.level.ServerPlayer;
+
 import java.util.UUID;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
-import net.minecraft.world.item.ItemStack;
 
 
 @Mod("easyafk")
@@ -53,23 +44,24 @@ public class AFKListener {
     @SubscribeEvent
     public void onPlayerTick(PlayerTickEvent.Pre event) {
         if (event.getEntity() instanceof ServerPlayer) {
-            Player player = event.getEntity();
+            ServerPlayer serverPlayer = (ServerPlayer) event.getEntity();
 
+            checkAFKTime(serverPlayer);
+        }
+    }
 
-            ServerPlayer serverPlayer = (ServerPlayer) player;
-
-            UUID playerUUID = serverPlayer.getUUID();
-            if (hasPlayerMoved(serverPlayer) || hasPlayerInteracted(serverPlayer)) {
-                // Player has moved or interacted, reset their AFK timer
-                resetAFKTimer(playerUUID);
-            } else {
-                int currentTime = playerAFKTime.getOrDefault(playerUUID, 0) + 1;
-                playerAFKTime.put(playerUUID, currentTime);
-                if (currentTime >=  AFK_THRESHOLD) {
-                    LOGGER.info(serverPlayer.getName().getString() + " has been AFK for " + (currentTime / 20) + " seconds.");
-                }
-
+    private void checkAFKTime(ServerPlayer serverPlayer) {
+        UUID playerUUID = serverPlayer.getUUID();
+        if (hasPlayerMoved(serverPlayer) || hasPlayerInteracted(serverPlayer)) {
+            // Player has moved or interacted, reset their AFK timer
+            resetAFKTimer(playerUUID);
+        } else {
+            int currentTime = playerAFKTime.getOrDefault(playerUUID, 0) + 1;
+            playerAFKTime.put(playerUUID, currentTime);
+            if (currentTime >=  AFK_THRESHOLD) {
+                LOGGER.info(serverPlayer.getName().getString() + " has been AFK for " + (currentTime / 20) + " seconds.");
             }
+
         }
     }
 
