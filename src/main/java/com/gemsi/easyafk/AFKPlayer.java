@@ -37,17 +37,17 @@ public class AFKPlayer {
 
         AFKListener.preventMovement(player);
 
-        String message = "You are now in AFK mode.";
+        //String message = "You are now in AFK mode.";
 
-        Component coloredMessage = Component.literal(message)
-                .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x00FF00))); // Green for AFK, Red for not AFK
+        //Component coloredMessage = Component.literal(message)
+        //        .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x00FF00))); // Green for AFK, Red for not AFK
 
 
-        player.sendSystemMessage(coloredMessage);
+        //player.sendSystemMessage(coloredMessage);
 
         String playerName = player.getName().getString();
-        Component serverMessage = Component.literal(playerName + " is away.")
-                .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x808080)));
+        Component serverMessage = Component.literal(playerName + " is now AFK.")
+                .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF5050)));
         assert ServerLifecycleHooks.getCurrentServer() != null;
         ServerLifecycleHooks.getCurrentServer().getPlayerList().broadcastSystemMessage(serverMessage, false);
 
@@ -59,21 +59,28 @@ public class AFKPlayer {
         AFKListener.resetAFKTimer(playerUUID);
         AFKCommands.removeAFKStatus(playerUUID);
 
-        String message = "You are no longer in AFK mode.";
-        AFKListener.unfreezePlayer(playerUUID);
-        Component coloredMessage = Component.literal(message)
-                .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF0000))); // Green for AFK, Red for not AFK
+        //String message = "You are no longer in AFK mode.";
+        //AFKListener.unfreezePlayer(playerUUID);
+        //Component coloredMessage = Component.literal(message)
+        //        .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF0000))); // Green for AFK, Red for not AFK
 
 
-        player.sendSystemMessage(coloredMessage);
+        //player.sendSystemMessage(coloredMessage);
 
         String playerName = player.getName().getString();
-        Component serverMessage = Component.literal(playerName + " is back.")
-                .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x808080)));
+        Component serverMessage = Component.literal(playerName + " is no longer AFK.")
+                .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x50FF50)));
 
         assert ServerLifecycleHooks.getCurrentServer() != null;
         ServerLifecycleHooks.getCurrentServer().getPlayerList().broadcastSystemMessage(serverMessage, false);
 
+    }
+
+    public static void afkDisallow(ServerPlayer player) {
+            String message = "You cannot do this while AFK!";
+            Component coloredMessage = Component.literal(message)
+                    .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF5050)));
+            player.sendSystemMessage(coloredMessage);
     }
 
 }

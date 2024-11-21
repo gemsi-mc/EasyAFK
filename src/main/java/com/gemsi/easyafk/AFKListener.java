@@ -20,6 +20,8 @@ import java.util.HashMap;
 import net.minecraft.network.chat.Component;
 import java.util.Map;
 
+import static net.minecraft.world.InteractionHand.MAIN_HAND;
+
 @Mod("easyafk")
 public class AFKListener {
 
@@ -179,9 +181,16 @@ public class AFKListener {
         if (event.getPlayer() instanceof ServerPlayer) {
 
             Player player = event.getPlayer();
+            ServerPlayer sPlayer = (ServerPlayer) event.getPlayer();
             UUID playerUUID = player.getUUID();
 
-            resetAFKTimer(playerUUID);
+            boolean isPlayerAFK = AFKCommands.getPlayerAFKStatus(player.getUUID());
+            if(isPlayerAFK) {
+                AFKPlayer.afkDisallow(sPlayer);
+                event.setCanceled(true);
+            }else {
+                event.setCanceled(false);
+            }
         }
     }
 
@@ -190,9 +199,18 @@ public class AFKListener {
         if (event.getEntity() instanceof ServerPlayer) {
 
             Player player = (Player) event.getEntity();
+            ServerPlayer sPlayer = (ServerPlayer) event.getEntity();
             UUID playerUUID = player.getUUID();
+            boolean isPlayerAFK = AFKCommands.getPlayerAFKStatus(player.getUUID());
 
-            resetAFKTimer(playerUUID);
+            if(isPlayerAFK) {
+                AFKPlayer.afkDisallow(sPlayer);
+                event.setCanceled(true);
+
+            }else {
+                resetAFKTimer(playerUUID);
+                event.setCanceled(false);
+            }
         }
     }
 
@@ -243,8 +261,14 @@ public class AFKListener {
         if (isPlayerAFK) {
             String playerName = player.getName().getString();
 
-            Component tablistName = Component.literal(playerName + " is away.")
-                    .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x808080)));
+            Component afkPrefix = Component.literal("[AFK] ")
+                    .setStyle(Style.EMPTY.withBold(false).withColor(TextColor.fromRgb(0x808080)));
+
+            Component playerNameComponent = Component.literal(playerName)
+                    .setStyle(Style.EMPTY.withBold(false).withColor(TextColor.fromRgb(0xFFFFFF)));
+
+            Component tablistName = afkPrefix.copy().append(playerNameComponent);
+
             event.setDisplayName(tablistName);
         }
     }

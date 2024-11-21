@@ -52,6 +52,7 @@ public class AFKCommands {
                                 // Remove player from the map if they are no longer AFK
                                 afkStatus.remove(playerUUID);
                                 AFKPlayer.removeAFK(player);
+                                player.refreshTabListName();
                                 LOGGER.info(player.getName().getString() + " is no longer in AFK mode.");
                             }
 
