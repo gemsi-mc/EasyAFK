@@ -44,23 +44,24 @@ public class AFKListener {
     @SubscribeEvent
     public void onPlayerTick(PlayerTickEvent.Pre event) {
         if (event.getEntity() instanceof ServerPlayer) {
-            Player player = event.getEntity();
+            ServerPlayer serverPlayer = (ServerPlayer) event.getEntity();
 
+            checkAFKTime(serverPlayer);
+        }
+    }
 
-            ServerPlayer serverPlayer = (ServerPlayer) player;
-
-            UUID playerUUID = serverPlayer.getUUID();
-            if (hasPlayerMoved(serverPlayer) || hasPlayerInteracted(serverPlayer)) {
-                // Player has moved or interacted, reset their AFK timer
-                resetAFKTimer(playerUUID);
-            } else {
-                int currentTime = playerAFKTime.getOrDefault(playerUUID, 0) + 1;
-                playerAFKTime.put(playerUUID, currentTime);
-                if (currentTime >=  AFK_THRESHOLD) {
-                    LOGGER.info(serverPlayer.getName().getString() + " has been AFK for " + (currentTime / 20) + " seconds.");
-                }
-
+    private void checkAFKTime(ServerPlayer serverPlayer) {
+        UUID playerUUID = serverPlayer.getUUID();
+        if (hasPlayerMoved(serverPlayer) || hasPlayerInteracted(serverPlayer)) {
+            // Player has moved or interacted, reset their AFK timer
+            resetAFKTimer(playerUUID);
+        } else {
+            int currentTime = playerAFKTime.getOrDefault(playerUUID, 0) + 1;
+            playerAFKTime.put(playerUUID, currentTime);
+            if (currentTime >=  AFK_THRESHOLD) {
+                LOGGER.info(serverPlayer.getName().getString() + " has been AFK for " + (currentTime / 20) + " seconds.");
             }
+
         }
     }
 
