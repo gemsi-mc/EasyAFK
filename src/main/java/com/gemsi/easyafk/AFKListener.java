@@ -255,9 +255,15 @@ public class AFKListener {
             Player player = event.getPlayer();
             UUID playerUUID = player.getUUID();
 
-            resetAFKTimer(playerUUID);
-
+            boolean isPlayerAFK = AFKCommands.getPlayerAFKStatus(playerUUID);
+            if(!isPlayerAFK) {
+                resetAFKTimer(playerUUID);
+            }
+            else {
+                EventUtils.shouldCancelForAFK(event, BlockEvent.BlockToolModificationEvent::getPlayer);
+            }
         }
+
     }
 
     @SubscribeEvent
