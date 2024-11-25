@@ -1,6 +1,5 @@
 package com.gemsi.easyafk;
 
-import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
@@ -70,13 +69,13 @@ public class AFKCommands {
                                 }
                                 // Add player to the map with true status (AFK)
                                 AFKPlayer.applyAFK(player);
-                                LOGGER.info(player.getName().getString() + " is now in AFK mode.");
+                                LOGGER.info("{} is now in AFK mode.", player.getName().getString());
                             } else {
                                 // Remove player from the map if they are no longer AFK
                                 afkStatus.remove(playerUUID);
                                 AFKPlayer.removeAFK(player);
                                 player.refreshTabListName();
-                                LOGGER.info(player.getName().getString() + " is no longer in AFK mode.");
+                                LOGGER.info("{} is no longer in AFK mode.", player.getName().getString());
                             }
 
                             return 1;

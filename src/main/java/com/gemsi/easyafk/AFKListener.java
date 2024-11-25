@@ -1,13 +1,11 @@
 package com.gemsi.easyafk;
 
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.player.Player;
@@ -23,7 +21,6 @@ import net.minecraft.world.item.Item;
 import net.neoforged.fml.common.Mod;
 import com.mojang.logging.LogUtils;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
-import org.apache.logging.log4j.core.jmx.Server;
 import org.slf4j.Logger;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import java.util.UUID;
@@ -33,7 +30,6 @@ import net.minecraft.network.chat.Component;
 import java.util.Map;
 import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
-import net.minecraft.world.damagesource.DamageSource;
 
 import static net.minecraft.world.damagesource.DamageTypes.FALL;
 
@@ -408,6 +404,22 @@ public class AFKListener {
         }
     }
 
-
+//    @SubscribeEvent
+//    public void onNameFormat(PlayerEvent.NameFormat event) {
+//        ServerPlayer player = (ServerPlayer) event.getEntity();
+//        String playerName = player.getName().getString();  // Get the player's original name
+//        UUID playerUUID = player.getUUID();
+//
+//        // Check if the player is AFK (replace this with your AFK detection logic)
+//        boolean isAFK = AFKCommands.getPlayerAFKStatus(playerUUID);
+//
+//        // If the player is AFK, prepend "[AFK]" to their name
+//        if (isAFK) {
+//            event.setDisplayname(Component.literal("[AFK] " + playerName));
+//        } else {
+//            // Otherwise, just use the player's original name
+//            event.setDisplayname(Component.literal(playerName));
+//        }
+//    }
 
 }

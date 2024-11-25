@@ -10,6 +10,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent.NameFormat;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.slf4j.Logger;
 
@@ -86,6 +87,7 @@ public class AFKPlayer {
         AFKCommands.addPlayerAFK(playerUUID);
         AFKListener.removeCombatCooldown(playerUUID);
         AFKListener.freezePlayerState(player);
+        player.refreshDisplayName();
         //AFKListener.preventMovement(player);
 
         String playerName = player.getName().getString();
@@ -103,6 +105,7 @@ public class AFKPlayer {
         AFKCommands.removeAFKStatus(playerUUID);
         AFKListener.unfreezePlayer(playerUUID);
         AFKListener.frozenDataMap.remove(playerUUID);
+        player.refreshDisplayName();
 
         String playerName = player.getName().getString();
         Component serverMessage = Component.literal(playerName + " is no longer AFK.")
