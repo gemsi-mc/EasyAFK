@@ -1,13 +1,17 @@
 package com.gemsi.easyafk;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.food.FoodData;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.common.util.TriState;
@@ -19,6 +23,7 @@ import net.minecraft.world.item.Item;
 import net.neoforged.fml.common.Mod;
 import com.mojang.logging.LogUtils;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import org.apache.logging.log4j.core.jmx.Server;
 import org.slf4j.Logger;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import java.util.UUID;
@@ -47,6 +52,8 @@ public class AFKListener {
 
     private static final Map<UUID, double[]> frozenPlayers = new HashMap<>();
 
+    static final Map<UUID, PlayerData> frozenDataMap = new HashMap<>();
+
 
     public static final Map<UUID, Long> combatCooldown = new HashMap<>();
 
@@ -70,6 +77,12 @@ public class AFKListener {
         combatCooldown.remove(playerUUID);
     }
 
+    private static class PlayerData {
+        int hunger;
+        float saturation;
+        float health;
+        Map<MobEffect, MobEffectInstance> potionEffects;
+    }
 
     @SubscribeEvent
     public void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
@@ -98,6 +111,7 @@ public class AFKListener {
             }
             else {
                 freezePlayer(serverPlayer);
+                AFKListener.maintainFrozenState(serverPlayer);
             }
 
             if(!AFKCommands.afkStatus.isEmpty()) {
@@ -296,8 +310,11 @@ public class AFKListener {
             UUID playerUUID = player.getUUID();
             boolean isPlayerAFK = AFKCommands.getPlayerAFKStatus(playerUUID);
 
+            UUID playerId = event.getEntity().getUUID();
+
             if(isPlayerAFK) {
                 AFKPlayer.removeAFK(player);
+                frozenDataMap.remove(playerId);
             }
 
         }
@@ -348,5 +365,49 @@ public class AFKListener {
             }
         }
     }
+
+    static void freezePlayerState(ServerPlayer player) {
+        UUID playerId = player.getUUID();
+        FoodData foodData = player.getFoodData();
+
+        PlayerData data = new PlayerData();
+        data.hunger = foodData.getFoodLevel();
+        data.saturation = foodData.getSaturationLevel();
+        data.health = player.getHealth();
+        data.potionEffects = new HashMap<>();
+
+        for (MobEffectInstance effectInstance : player.getActiveEffects()) {
+            Holder<MobEffect> holder = effectInstance.getEffect();
+            if (holder.isBound()) {
+                MobEffect mobEffect = holder.value();
+                data.potionEffects.put(mobEffect, effectInstance);
+            }
+        }
+
+        frozenDataMap.put(playerId, data);
+    }
+
+
+
+    private static void maintainFrozenState(ServerPlayer player) {
+        UUID playerId = player.getUUID();
+        if (!frozenDataMap.containsKey(playerId)) return;
+
+        PlayerData data = frozenDataMap.get(playerId);
+        FoodData foodData = player.getFoodData();
+
+        foodData.setFoodLevel(data.hunger);
+        foodData.setSaturation(data.saturation);
+
+        player.setHealth(data.health);
+
+        player.removeAllEffects();
+        for (Map.Entry<MobEffect, MobEffectInstance> entry : data.potionEffects.entrySet()) {
+            MobEffectInstance effectInstance = entry.getValue();
+            player.addEffect(new MobEffectInstance(effectInstance));
+        }
+    }
+
+
 
 }

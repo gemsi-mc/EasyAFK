@@ -85,6 +85,7 @@ public class AFKPlayer {
 
         AFKCommands.addPlayerAFK(playerUUID);
         AFKListener.removeCombatCooldown(playerUUID);
+        AFKListener.freezePlayerState(player);
         //AFKListener.preventMovement(player);
 
         String playerName = player.getName().getString();
@@ -101,6 +102,7 @@ public class AFKPlayer {
         AFKListener.resetAFKTimer(playerUUID);
         AFKCommands.removeAFKStatus(playerUUID);
         AFKListener.unfreezePlayer(playerUUID);
+        AFKListener.frozenDataMap.remove(playerUUID);
 
         String playerName = player.getName().getString();
         Component serverMessage = Component.literal(playerName + " is no longer AFK.")
