@@ -1,6 +1,9 @@
 package com.gemsi.easyafk;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 import org.slf4j.Logger;
 import net.minecraft.commands.Commands;
 import net.neoforged.fml.common.Mod;
@@ -43,8 +46,28 @@ public class AFKCommands {
 
                             boolean playerAfkStatus = !getPlayerAFKStatus(playerUUID);
 
+
                             if (playerAfkStatus) {
 
+                                if (player.fallDistance > 1) {
+                                    String message = "You cannot go into AFK whilst falling!";
+                                    Component coloredMessage = Component.literal(message)
+                                            .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF5050)));
+                                    player.sendSystemMessage(coloredMessage);
+                                    return 0;
+                                }
+
+                                if (AFKPlayer.isInCombat(playerUUID)) {
+                                    long currentTime = System.currentTimeMillis();
+                                    long combatCooldown = AFKListener.combatCooldown.getOrDefault(playerUUID, 0L);
+                                    if (!(currentTime - combatCooldown >= AFKPlayer.COMBAT_THRESHOLD)) {
+                                        String message = "You cannot go into AFK whilst you are in combat!";
+                                        Component coloredMessage = Component.literal(message)
+                                                .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF5050)));
+                                        player.sendSystemMessage(coloredMessage);
+                                        return 0;
+                                    }
+                                }
                                 // Add player to the map with true status (AFK)
                                 AFKPlayer.applyAFK(player);
                                 LOGGER.info(player.getName().getString() + " is now in AFK mode.");
