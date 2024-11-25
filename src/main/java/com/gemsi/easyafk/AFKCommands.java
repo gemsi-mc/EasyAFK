@@ -1,6 +1,5 @@
 package com.gemsi.easyafk;
 
-import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
@@ -34,6 +33,7 @@ public class AFKCommands {
         NeoForge.EVENT_BUS.addListener(this::init);
     }
 
+
     private void init(RegisterCommandsEvent event) {
         CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
 
@@ -56,8 +56,7 @@ public class AFKCommands {
                                     player.sendSystemMessage(coloredMessage);
                                     return 0;
                                 }
-
-                                if (AFKPlayer.isInCombat(playerUUID)) {
+                                else if (AFKPlayer.isInCombat(playerUUID)) {
                                     long currentTime = System.currentTimeMillis();
                                     long combatCooldown = AFKListener.combatCooldown.getOrDefault(playerUUID, 0L);
                                     if (!(currentTime - combatCooldown >= AFKPlayer.COMBAT_THRESHOLD)) {
@@ -67,6 +66,13 @@ public class AFKCommands {
                                         player.sendSystemMessage(coloredMessage);
                                         return 0;
                                     }
+                                }
+                                else if(AFKListener.isRecentDamage(playerUUID)) {
+                                    String message = "You can't go AFK! Stay alert, danger is everywhere!";
+                                    Component coloredMessage = Component.literal(message)
+                                            .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF5050)));
+                                    player.sendSystemMessage(coloredMessage);
+                                    return 0;
                                 }
                                 // Add player to the map with true status (AFK)
                                 AFKPlayer.applyAFK(player);

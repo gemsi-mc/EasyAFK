@@ -1,12 +1,13 @@
 package com.gemsi.easyafk;
 
-import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageType;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -21,16 +22,15 @@ import com.mojang.logging.LogUtils;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import org.slf4j.Logger;
 import net.neoforged.neoforge.event.level.BlockEvent;
-import java.util.UUID;
+
+import java.util.*;
+
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
-import java.util.HashMap;
 import net.minecraft.network.chat.Component;
-import java.util.Map;
 import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
-import net.minecraft.world.damagesource.DamageSource;
 
-import static net.minecraft.world.damagesource.DamageTypes.FALL;
+import static net.minecraft.world.damagesource.DamageTypes.*;
 
 
 @Mod("easyafk")
@@ -38,10 +38,9 @@ public class AFKListener {
 
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    private static final int AFK_THRESHOLD = 120;
+    private static final int AFK_THRESHOLD = 300;
     private static final double MOVEMENT_THRESHOLD = 0.1;
-
-    private static final double FREEZE_CHECK = 200;
+    private static final double DAMAGE_THRESHOLD = AFKPlayer.COMBAT_THRESHOLD;
 
     private static final Map<UUID, Integer> playerAFKTime = new HashMap<>(); // Tracks AFK time
 
@@ -50,7 +49,21 @@ public class AFKListener {
 
     public static final Map<UUID, Long> combatCooldown = new HashMap<>();
 
+    public static final Map<UUID, Long> damageTimestamps = new HashMap<>();
 
+
+    public static boolean isRecentDamage(UUID playerUUID) {
+
+        // Check if the player is in combat (last damage time was within the threshold)
+        if (AFKListener.damageTimestamps.containsKey(playerUUID)) {
+            long lastDamageTime = AFKListener.damageTimestamps.get(playerUUID);
+            long currentTime = System.currentTimeMillis();
+
+            return currentTime - lastDamageTime <= DAMAGE_THRESHOLD;
+        }
+
+        return false;  // Return false if the player doesn't exist in the map
+    }
 
     public static void freezePlayerPosition(UUID playerUUID, double x, double y, double z) {
         double[] coords = new double[]{x, y, z};
@@ -62,7 +75,6 @@ public class AFKListener {
         frozenPlayers.remove(playerUUID);
     }
 
-    private static final Map<ServerPlayer, Long> lastFreezeCheck = new HashMap<>();
 
     private final Map<ServerPlayer, Long> lastCheckTime = new HashMap<>();
 
@@ -123,10 +135,6 @@ public class AFKListener {
                         serverPlayer.getXRot()   // Player's X rotation
                 );
             }
-
-
-
-
     }
 
     private void checkAFKTime(ServerPlayer serverPlayer) {
@@ -152,9 +160,7 @@ public class AFKListener {
 
             }
             lastCheckTime.put(serverPlayer, currentTime);
-
         }
-
     }
 
     private static boolean hasPlayerMoved(ServerPlayer player) {
@@ -181,7 +187,6 @@ public class AFKListener {
 
     private static boolean hasPlayerInteracted(ServerPlayer player) {
         Item heldItem = player.getMainHandItem().getItem();
-
 
         if (heldItem instanceof BlockItem) {
             return player.isUsingItem();
@@ -330,8 +335,24 @@ public class AFKListener {
                 UUID playerUUID = player.getUUID();
 
                 resetAFKTimer(playerUUID);
+
                 long currentTime = System.currentTimeMillis();
-                combatCooldown.put(playerUUID, currentTime);
+
+                ResourceKey<DamageType> damageTypeKey = event.getSource().typeHolder().getKey();
+                boolean isCombatDamage = DamageManager.isCombatDamage(damageTypeKey);
+
+                if (isCombatDamage) {
+                    if (event.getSource().is(PLAYER_ATTACK)) {
+                        Entity attackerPlayer = event.getSource().getEntity();
+                        assert attackerPlayer != null;
+                        UUID attackerUUID = attackerPlayer.getUUID();
+                        combatCooldown.put(attackerUUID, currentTime);
+                    }
+                    combatCooldown.put(playerUUID, currentTime);
+                }
+                else {
+                    damageTimestamps.put(playerUUID, currentTime);
+                }
             }
 
         }
