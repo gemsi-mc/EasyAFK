@@ -1,17 +1,26 @@
 package com.gemsi.easyafk;
 
-import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
+import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.food.FoodData;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.common.util.TriState;
 import net.neoforged.neoforge.event.entity.living.LivingEvent;
+import net.neoforged.neoforge.event.entity.player.ItemEntityPickupEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.neoforged.fml.common.Mod;
 import com.mojang.logging.LogUtils;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import org.slf4j.Logger;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import java.util.UUID;
@@ -19,25 +28,36 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import java.util.HashMap;
 import net.minecraft.network.chat.Component;
 import java.util.Map;
+import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
+
+import static net.minecraft.world.damagesource.DamageTypes.FALL;
+
 
 @Mod("easyafk")
 public class AFKListener {
 
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    private static final int AFK_THRESHOLD = 5;
+    private static final int AFK_THRESHOLD = 120;
     private static final double MOVEMENT_THRESHOLD = 0.1;
 
-    private static final double FREEZE_CHECK = 500;
+    private static final double FREEZE_CHECK = 200;
 
     private static final Map<UUID, Integer> playerAFKTime = new HashMap<>(); // Tracks AFK time
 
-    private static final Map<UUID, BlockPos> frozenPlayers = new HashMap<>();
+    private static final Map<UUID, double[]> frozenPlayers = new HashMap<>();
+
+    static final Map<UUID, PlayerData> frozenDataMap = new HashMap<>();
+
+
+    public static final Map<UUID, Long> combatCooldown = new HashMap<>();
 
 
 
-    public static void freezePlayer(UUID playerUUID, BlockPos position) {
-        frozenPlayers.put(playerUUID, position);
+    public static void freezePlayerPosition(UUID playerUUID, double x, double y, double z) {
+        double[] coords = new double[]{x, y, z};
+        frozenPlayers.put(playerUUID, coords);
     }
 
 
@@ -45,9 +65,21 @@ public class AFKListener {
         frozenPlayers.remove(playerUUID);
     }
 
-    private final Map<ServerPlayer, Long> lastFreezeCheck = new HashMap<>();
+    private static final Map<ServerPlayer, Long> lastFreezeCheck = new HashMap<>();
 
     private final Map<ServerPlayer, Long> lastCheckTime = new HashMap<>();
+
+    public static void removeCombatCooldown(UUID playerUUID) {
+        combatCooldown.remove(playerUUID);
+    }
+
+    private static class PlayerData {
+        int hunger;
+        float saturation;
+        float health;
+        Map<MobEffect, MobEffectInstance> potionEffects;
+    }
+
     @SubscribeEvent
     public void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
 
@@ -75,6 +107,7 @@ public class AFKListener {
             }
             else {
                 freezePlayer(serverPlayer);
+                AFKListener.maintainFrozenState(serverPlayer);
             }
 
             if(!AFKCommands.afkStatus.isEmpty()) {
@@ -84,26 +117,23 @@ public class AFKListener {
         }
     }
 
-    private void freezePlayer(ServerPlayer serverPlayer) {
+    private static void freezePlayer(ServerPlayer serverPlayer) {
 
         UUID playerUUID = serverPlayer.getUUID();
 
-        long currentTime = System.currentTimeMillis();
-        long lastTime = lastFreezeCheck.getOrDefault(serverPlayer, 0L);
-        if (currentTime - lastTime >= FREEZE_CHECK) {
-            BlockPos frozenPos = frozenPlayers.get(playerUUID);
-            if (frozenPos != null) {
+            double[] frozenPos = frozenPlayers.get(playerUUID);
+
+            if (hasPlayerMoved(serverPlayer)) {
                 // Teleport the player back to their frozen position
                 serverPlayer.connection.teleport(
-                        frozenPos.getX() + 0.5,
-                        frozenPos.getY(),
-                        frozenPos.getZ() + 0.5,
-                        serverPlayer.getYRot(),
-                        serverPlayer.getXRot()
+                        frozenPos[0], // x coordinate
+                        frozenPos[1], // y coordinate
+                        frozenPos[2], // z coordinate
+                        serverPlayer.getYRot(),  // Player's Y rotation
+                        serverPlayer.getXRot()   // Player's X rotation
                 );
             }
-            lastFreezeCheck.put(serverPlayer, currentTime);
-        }
+
 
 
 
@@ -176,24 +206,56 @@ public class AFKListener {
 
     @SubscribeEvent
     public void onPlayerDestroyItem(BlockEvent.BreakEvent event) {
-        if (event.getPlayer() instanceof ServerPlayer) {
+        if (event.getPlayer() instanceof ServerPlayer sPlayer) {
 
             Player player = event.getPlayer();
             UUID playerUUID = player.getUUID();
 
-            resetAFKTimer(playerUUID);
+            boolean isPlayerAFK = AFKCommands.getPlayerAFKStatus(playerUUID);
+            if(isPlayerAFK) {
+                AFKPlayer.afkDisallow(sPlayer);
+                event.setCanceled(true);
+            }else {
+                event.setCanceled(false);
+            }
         }
     }
 
     @SubscribeEvent
-    public void onPlayerBlockPlace(BlockEvent.EntityPlaceEvent event) {
-        if (event.getEntity() instanceof ServerPlayer) {
+    public void onPlayerBlockPlace(PlayerInteractEvent.RightClickBlock event) {
 
-            Player player = (Player) event.getEntity();
+        if (event.getEntity() instanceof ServerPlayer player) {
             UUID playerUUID = player.getUUID();
+            boolean isPlayerAFK = AFKCommands.getPlayerAFKStatus(playerUUID);
 
-            resetAFKTimer(playerUUID);
+            InteractionHand hand = event.getHand();
+
+
+            if(isPlayerAFK) {
+                AFKPlayer.afkDisallow(player);
+                // Cancel the block placement
+                event.setCanceled(true);
+
+                // Restore the item in hand
+                ItemStack handStack = player.getItemInHand(hand);
+                player.setItemInHand(hand, handStack);
+
+                updateClientInventory(player,hand);
+
+            }else {
+                resetAFKTimer(playerUUID);
+                event.setCanceled(false);
+            }
         }
+    }
+
+    @SubscribeEvent
+    private void onPlayerEntityInteract(PlayerInteractEvent.EntityInteract event) {
+        EventUtils.shouldCancelForAFK(event, PlayerInteractEvent.EntityInteract::getEntity);
+    }
+
+    private void updateClientInventory(ServerPlayer player, InteractionHand hand) {
+        player.connection.send(new ClientboundContainerSetSlotPacket(-2, 0, player.getInventory().selected, player.getItemInHand(hand)));
     }
 
     @SubscribeEvent
@@ -203,18 +265,36 @@ public class AFKListener {
             Player player = event.getPlayer();
             UUID playerUUID = player.getUUID();
 
-            resetAFKTimer(playerUUID);
+            boolean isPlayerAFK = AFKCommands.getPlayerAFKStatus(playerUUID);
+            if(!isPlayerAFK) {
+                resetAFKTimer(playerUUID);
+            }
+            else {
+                EventUtils.shouldCancelForAFK(event, BlockEvent.BlockToolModificationEvent::getPlayer);
+            }
+        }
 
+    }
+
+    @SubscribeEvent
+    public void onPlayerAttackEntity(AttackEntityEvent event) {
+        EventUtils.shouldCancelForAFK(event, AttackEntityEvent::getEntity);
+    }
+
+    @SubscribeEvent
+    public void onPlayerItemPickup(ItemEntityPickupEvent.Pre event) {
+        if (event.getPlayer() instanceof ServerPlayer player) {
+            UUID playerUUID = player.getUUID();
+            boolean isPlayerAFK = AFKCommands.getPlayerAFKStatus(playerUUID);
+            if (isPlayerAFK) event.setCanPickup(TriState.FALSE);
         }
     }
 
     @SubscribeEvent
     public void onPlayerItemCraft(PlayerEvent.ItemCraftedEvent event) {
         if (event.getEntity() instanceof ServerPlayer) {
-
             Player player = event.getEntity();
             UUID playerUUID = player.getUUID();
-
             resetAFKTimer(playerUUID);
 
         }
@@ -222,13 +302,15 @@ public class AFKListener {
 
     @SubscribeEvent
     public void onPlayerJump(LivingEvent.LivingJumpEvent event) {
-        if (event.getEntity() instanceof ServerPlayer) {
-            ServerPlayer player = (ServerPlayer) event.getEntity();
+        if (event.getEntity() instanceof ServerPlayer player) {
             UUID playerUUID = player.getUUID();
             boolean isPlayerAFK = AFKCommands.getPlayerAFKStatus(playerUUID);
 
+            UUID playerId = event.getEntity().getUUID();
+
             if(isPlayerAFK) {
                 AFKPlayer.removeAFK(player);
+                frozenDataMap.remove(playerId);
             }
 
         }
@@ -236,31 +318,108 @@ public class AFKListener {
 
     @SubscribeEvent
     public void onTabListDecorate(PlayerEvent.TabListNameFormat event) {
-        LOGGER.info("Getting tab list");
         ServerPlayer player = (ServerPlayer) event.getEntity();
 
         boolean isPlayerAFK = AFKCommands.getPlayerAFKStatus(player.getUUID());
         if (isPlayerAFK) {
             String playerName = player.getName().getString();
 
-            Component tablistName = Component.literal(playerName + " is away.")
-                    .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x808080)));
+            Component afkPrefix = Component.literal("[AFK] ")
+                    .setStyle(Style.EMPTY.withBold(false).withColor(TextColor.fromRgb(0x808080)));
+
+            Component playerNameComponent = Component.literal(playerName)
+                    .setStyle(Style.EMPTY.withBold(false).withColor(TextColor.fromRgb(0xFFFFFF)));
+
+            Component tablistName = afkPrefix.copy().append(playerNameComponent);
+
             event.setDisplayName(tablistName);
         }
     }
 
-    public static void preventMovement(ServerPlayer serverPlayer) {
-        UUID playerUUID = serverPlayer.getUUID();
-        if (AFKCommands.afkStatus.getOrDefault(playerUUID, false)) {
-            // Record the player's current position when they go AFK
-            BlockPos currentPos = serverPlayer.blockPosition();
-            frozenPlayers.put(playerUUID, currentPos);
+    @SubscribeEvent
+    public void onPlayerDamage(LivingDamageEvent.Post event) {
+        if(event.getEntity() instanceof ServerPlayer player) {
+            if (!event.getSource().is(FALL)) {
+                UUID playerUUID = player.getUUID();
 
-            // Teleport the player back to their current position every tick to freeze them
-            serverPlayer.connection.teleport(currentPos.getX() + 0.5, currentPos.getY(), currentPos.getZ() + 0.5, serverPlayer.getYRot(), serverPlayer.getXRot());
-        } else {
-            // Remove the player from the frozen list if they're no longer AFK
-            frozenPlayers.remove(playerUUID);
+                resetAFKTimer(playerUUID);
+                long currentTime = System.currentTimeMillis();
+                combatCooldown.put(playerUUID, currentTime);
+            }
+
         }
     }
+
+    @SubscribeEvent
+    public void onPlayerDamage(LivingDamageEvent.Pre event) {
+        if(event.getEntity() instanceof ServerPlayer player) {
+            UUID playerUUID = player.getUUID();
+            boolean playerAfkStatus = AFKCommands.getPlayerAFKStatus(playerUUID);
+
+            if(playerAfkStatus) {
+                event.setNewDamage(0);
+            }
+        }
+    }
+
+    static void freezePlayerState(ServerPlayer player) {
+        UUID playerId = player.getUUID();
+        FoodData foodData = player.getFoodData();
+
+        PlayerData data = new PlayerData();
+        data.hunger = foodData.getFoodLevel();
+        data.saturation = foodData.getSaturationLevel();
+        data.health = player.getHealth();
+        data.potionEffects = new HashMap<>();
+
+        for (MobEffectInstance effectInstance : player.getActiveEffects()) {
+            Holder<MobEffect> holder = effectInstance.getEffect();
+            if (holder.isBound()) {
+                MobEffect mobEffect = holder.value();
+                data.potionEffects.put(mobEffect, effectInstance);
+            }
+        }
+
+        frozenDataMap.put(playerId, data);
+    }
+
+
+
+    private static void maintainFrozenState(ServerPlayer player) {
+        UUID playerId = player.getUUID();
+        if (!frozenDataMap.containsKey(playerId)) return;
+
+        PlayerData data = frozenDataMap.get(playerId);
+        FoodData foodData = player.getFoodData();
+
+        foodData.setFoodLevel(data.hunger);
+        foodData.setSaturation(data.saturation);
+
+        player.setHealth(data.health);
+
+        player.removeAllEffects();
+        for (Map.Entry<MobEffect, MobEffectInstance> entry : data.potionEffects.entrySet()) {
+            MobEffectInstance effectInstance = entry.getValue();
+            player.addEffect(new MobEffectInstance(effectInstance));
+        }
+    }
+
+//    @SubscribeEvent
+//    public void onNameFormat(PlayerEvent.NameFormat event) {
+//        ServerPlayer player = (ServerPlayer) event.getEntity();
+//        String playerName = player.getName().getString();  // Get the player's original name
+//        UUID playerUUID = player.getUUID();
+//
+//        // Check if the player is AFK (replace this with your AFK detection logic)
+//        boolean isAFK = AFKCommands.getPlayerAFKStatus(playerUUID);
+//
+//        // If the player is AFK, prepend "[AFK]" to their name
+//        if (isAFK) {
+//            event.setDisplayname(Component.literal("[AFK] " + playerName));
+//        } else {
+//            // Otherwise, just use the player's original name
+//            event.setDisplayname(Component.literal(playerName));
+//        }
+//    }
+
 }
