@@ -134,6 +134,7 @@ public class AFKPlayer {
         AFKListener.removeDamageCooldown(playerUUID);
         AFKListener.freezePlayerState(player);
         player.refreshDisplayName();
+        player.refreshTabListName();
 
         // Broadcast message if enabled
         if (Config.broadcastAFKMessages) {
@@ -159,6 +160,7 @@ public class AFKPlayer {
         AFKListener.frozenDataMap.remove(playerUUID);
         AFKListener.clearKickWarning(playerUUID);
         player.refreshDisplayName();
+        player.refreshTabListName();
 
         // Broadcast message if enabled
         if (Config.broadcastAFKMessages) {

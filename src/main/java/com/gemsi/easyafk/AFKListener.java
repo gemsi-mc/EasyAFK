@@ -202,12 +202,11 @@ public class AFKListener {
                 resetAFKTimer(playerUUID);
             } else {
                 int currentAFKTime = playerAFKTime.getOrDefault(playerUUID, 0) + 1;
+
                 playerAFKTime.put(playerUUID, currentAFKTime);
 
                 if (currentAFKTime >= Config.afkTimeout) {
                     AFKPlayer.applyAFK(serverPlayer);
-                    LOGGER.info("{} was automatically marked as AFK after {} seconds",
-                            serverPlayer.getName().getString(), Config.afkTimeout);
                 }
             }
             lastCheckTime.put(serverPlayer, currentTime);
@@ -231,10 +230,11 @@ public class AFKListener {
             return false;
         }
 
-        if (Math.abs(currentX - lastX) > Config.movementThreshold ||
-                Math.abs(currentY - lastY) > Config.movementThreshold ||
-                Math.abs(currentZ - lastZ) > Config.movementThreshold) {
+        double deltaX = Math.abs(currentX - lastX);
+        double deltaY = Math.abs(currentY - lastY);
+        double deltaZ = Math.abs(currentZ - lastZ);
 
+        if (deltaX > Config.movementThreshold || deltaY > Config.movementThreshold || deltaZ > Config.movementThreshold) {
             player.getPersistentData().putDouble("lastX", currentX);
             player.getPersistentData().putDouble("lastY", currentY);
             player.getPersistentData().putDouble("lastZ", currentZ);
@@ -255,6 +255,7 @@ public class AFKListener {
     }
 
     public static void resetAFKTimer(UUID playerUUID) {
+        int oldValue = playerAFKTime.getOrDefault(playerUUID, 0);
         playerAFKTime.put(playerUUID, 0);
         kickWarningShown.remove(playerUUID);
     }
@@ -306,8 +307,6 @@ public class AFKListener {
                 ItemStack handStack = player.getItemInHand(hand);
                 player.setItemInHand(hand, handStack);
                 updateClientInventory(player, hand);
-            } else {
-                resetAFKTimer(playerUUID);
             }
         }
     }
@@ -321,8 +320,6 @@ public class AFKListener {
             if (isPlayerAFK) {
                 AFKPlayer.afkDisallow(player);
                 event.setCanceled(true);
-            } else {
-                resetAFKTimer(playerUUID);
             }
         }
     }
@@ -336,8 +333,6 @@ public class AFKListener {
             if (isPlayerAFK) {
                 AFKPlayer.afkDisallow(player);
                 event.setCanceled(true);
-            } else {
-                resetAFKTimer(playerUUID);
             }
         }
     }

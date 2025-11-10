@@ -83,7 +83,6 @@ public class AFKCommands {
                             } else {
                                 // Player wants to leave AFK
                                 AFKPlayer.removeAFK(player);
-                                player.refreshTabListName();
                                 LOGGER.info("{} manually left AFK mode.", player.getName().getString());
                             }
 
