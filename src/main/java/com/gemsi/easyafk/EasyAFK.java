@@ -1,6 +1,8 @@
 package com.gemsi.easyafk;
 
 
+import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.config.ModConfig;
 import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
@@ -26,10 +28,13 @@ public class EasyAFK
     // The constructor for the mod class is the first code that is run when your mod is loaded.
     // FML will recognize some parameter types like IEventBus or ModContainer and pass them in automatically.
 
-    public EasyAFK(IEventBus modEventBus)
+    public EasyAFK(IEventBus modEventBus, ModContainer modContainer)
     {
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);
+
+        // Register config
+        modContainer.registerConfig(ModConfig.Type.SERVER, Config.SPEC);
 
         // Register ourselves for server and other game events we are interested in.
         // Note that this is necessary if and only if we want *this* class (ExampleMod) to respond directly to events.
@@ -42,7 +47,7 @@ public class EasyAFK
     private void commonSetup(final FMLCommonSetupEvent event)
     {
         // Some common setup code
-        LOGGER.info("HELLO FROM COMMON SETUP");
+        LOGGER.info("EasyAFK common setup complete");
     }
 
     // You can use SubscribeEvent and let the Event Bus discover methods to call
@@ -50,7 +55,7 @@ public class EasyAFK
     public void onServerStarting(ServerStartingEvent event)
     {
         // Do something when the server starts
-        LOGGER.info("HELLO from server starting");
+        LOGGER.info("EasyAFK server starting - AFK system active");
     }
 
 }

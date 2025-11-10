@@ -19,21 +19,29 @@ import java.util.UUID;
 public class AFKPlayer {
 
     private static final Logger LOGGER = LogUtils.getLogger();
-    public static final int COMBAT_THRESHOLD = 15000;
 
     public static boolean isInCombat(UUID playerUUID) {
-
-        // Check if the player is in combat (last damage time was within the threshold)
         if (AFKListener.combatCooldown.containsKey(playerUUID)) {
             long lastDamageTime = AFKListener.combatCooldown.get(playerUUID);
             long currentTime = System.currentTimeMillis();
-
-            return currentTime - lastDamageTime <= COMBAT_THRESHOLD;
+            return currentTime - lastDamageTime <= Config.combatCooldown;
         }
-
-        return false;  // Return false if the player doesn't exist in the map
+        return false;
     }
 
+    public static boolean isExemptFromAutoAFK(ServerPlayer player) {
+        // Check if player is in exempt list
+        if (Config.exemptPlayers.contains(player.getStringUUID())) {
+            return true;
+        }
+
+        // Check permission level
+        if (Config.minPermissionLevel > 0 && player.hasPermissions(Config.minPermissionLevel)) {
+            return true;
+        }
+
+        return false;
+    }
 
     public static void applyInvulnerability(ServerPlayer player) {
         player.setInvulnerable(true);
@@ -49,49 +57,55 @@ public class AFKPlayer {
 
     private static final Set<Block> unsafeBlocks = new HashSet<>();
     private static final Set<Block> liquidBlocks = new HashSet<>();
+
     static {
-        // Add blocks to the unsafe blocks set
+        // Blocks that players can pass through
         unsafeBlocks.add(Blocks.AIR);
         unsafeBlocks.add(Blocks.SHORT_GRASS);
         unsafeBlocks.add(Blocks.TALL_GRASS);
         unsafeBlocks.add(Blocks.CAVE_AIR);
+        unsafeBlocks.add(Blocks.FERN);
+        unsafeBlocks.add(Blocks.LARGE_FERN);
+        unsafeBlocks.add(Blocks.SEAGRASS);
+        unsafeBlocks.add(Blocks.TALL_SEAGRASS);
+        unsafeBlocks.add(Blocks.KELP);
+        unsafeBlocks.add(Blocks.KELP_PLANT);
+        unsafeBlocks.add(Blocks.VINE);
+        unsafeBlocks.add(Blocks.DEAD_BUSH);
 
         // Liquid blocks
         liquidBlocks.add(Blocks.WATER);
-
+        liquidBlocks.add(Blocks.LAVA);
     }
 
     public static void applyAFK(ServerPlayer player) {
-
         UUID playerUUID = player.getUUID();
-
 
         double x = player.getX();
         double z = player.getZ();
         double y = player.getY();
 
-        // Get the world (level) the player is in
         var world = player.getCommandSenderWorld();
 
-        // Start from the player's current Y position and move downward
-        for (double yOffset = y; yOffset > 0; yOffset--) {
-            BlockPos checkPos = new BlockPos((int) x, (int) yOffset, (int) z);  // Cast yOffset to int for BlockPos
+        // Find safe position below player
+        for (double yOffset = y; yOffset > world.getMinBuildHeight(); yOffset--) {
+            BlockPos checkPos = new BlockPos((int) x, (int) yOffset, (int) z);
             BlockState blockState = world.getBlockState(checkPos);
 
             if (!unsafeBlocks.contains(blockState.getBlock())) {
                 // Handle water blocks specifically
-                if (blockState.getBlock() == Blocks.WATER) {
-                    // Start at this Y and move upwards to find the top-most water block
+                if (blockState.getBlock() == Blocks.WATER && Config.floatOnWater) {
+                    // Find the top-most water block
                     while (world.getBlockState(checkPos.above()).getBlock() == Blocks.WATER) {
-                        checkPos = checkPos.above();  // Move up
+                        checkPos = checkPos.above();
                         yOffset++;
                     }
                 }
 
                 // Calculate safe coordinates above the block
                 double safeY = yOffset + 1.0;
-                double safeX = checkPos.getX() + (x - checkPos.getX());  // Adjust X relative to the block position
-                double safeZ = checkPos.getZ() + (z - checkPos.getZ());  // Adjust Z relative to the block position
+                double safeX = checkPos.getX() + (x - checkPos.getX());
+                double safeZ = checkPos.getZ() + (z - checkPos.getZ());
 
                 // Round the coordinates
                 double roundedX = Math.round(safeX * 1000.0) / 1000.0;
@@ -99,59 +113,67 @@ public class AFKPlayer {
                 int roundedYInt = (int) roundedY;
                 double roundedZ = Math.round(safeZ * 1000.0) / 1000.0;
 
-                // Log and save the position
-                LOGGER.info("Safe Position: X = {}, Y = {}, Z = {}", roundedX, roundedYInt, roundedZ);
+                LOGGER.info("Safe Position for {}: X = {}, Y = {}, Z = {}",
+                        player.getName().getString(), roundedX, roundedYInt, roundedZ);
                 AFKListener.freezePlayerPosition(playerUUID, roundedX, roundedYInt, roundedZ);
                 break;
             }
         }
 
-
+        // Apply protections
         applyInvulnerability(player);
 
-        if (player.getBlockStateOn().is(Blocks.WATER)) {
+        // Float on water if enabled
+        if (Config.floatOnWater && player.getBlockStateOn().is(Blocks.WATER)) {
             player.setNoGravity(true);
         }
 
+        // Update AFK status
         AFKCommands.addPlayerAFK(playerUUID);
         AFKListener.removeCombatCooldown(playerUUID);
+        AFKListener.removeDamageCooldown(playerUUID);
         AFKListener.freezePlayerState(player);
         player.refreshDisplayName();
-        //AFKListener.preventMovement(player);
 
-        String playerName = player.getName().getString();
-        Component serverMessage = Component.literal(playerName + " is now AFK.")
-                .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF5050)));
-        assert ServerLifecycleHooks.getCurrentServer() != null;
-        ServerLifecycleHooks.getCurrentServer().getPlayerList().broadcastSystemMessage(serverMessage, false);
-
+        // Broadcast message if enabled
+        if (Config.broadcastAFKMessages) {
+            String playerName = player.getName().getString();
+            Component serverMessage = Component.literal(playerName + " is now AFK.")
+                    .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF5050)));
+            assert ServerLifecycleHooks.getCurrentServer() != null;
+            ServerLifecycleHooks.getCurrentServer().getPlayerList().broadcastSystemMessage(serverMessage, false);
+        }
     }
 
     public static void removeAFK(ServerPlayer player) {
         UUID playerUUID = player.getUUID();
+
+        // Remove protections
         removeInvulnerability(player);
+        player.setNoGravity(false);
+
+        // Clear AFK data
         AFKListener.resetAFKTimer(playerUUID);
         AFKCommands.removeAFKStatus(playerUUID);
         AFKListener.unfreezePlayer(playerUUID);
         AFKListener.frozenDataMap.remove(playerUUID);
+        AFKListener.clearKickWarning(playerUUID);
         player.refreshDisplayName();
 
-        player.setNoGravity(false);
-        String playerName = player.getName().getString();
-        Component serverMessage = Component.literal(playerName + " is no longer AFK.")
-                .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x50FF50)));
-
-        assert ServerLifecycleHooks.getCurrentServer() != null;
-        ServerLifecycleHooks.getCurrentServer().getPlayerList().broadcastSystemMessage(serverMessage, false);
-
+        // Broadcast message if enabled
+        if (Config.broadcastAFKMessages) {
+            String playerName = player.getName().getString();
+            Component serverMessage = Component.literal(playerName + " is no longer AFK.")
+                    .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x50FF50)));
+            assert ServerLifecycleHooks.getCurrentServer() != null;
+            ServerLifecycleHooks.getCurrentServer().getPlayerList().broadcastSystemMessage(serverMessage, false);
+        }
     }
-
 
     public static void afkDisallow(ServerPlayer player) {
-            String message = "You cannot do this while AFK!";
-            Component coloredMessage = Component.literal(message)
-                    .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF5050)));
-            player.sendSystemMessage(coloredMessage);
+        String message = "You cannot do this while AFK!";
+        Component coloredMessage = Component.literal(message)
+                .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF5050)));
+        player.sendSystemMessage(coloredMessage);
     }
-
 }
