@@ -125,7 +125,9 @@ public class AFKListener {
 
             if (!playerAfkStatus) {
                 // Check if player should be auto-AFK'd
-                if (!AFKPlayer.isExemptFromAutoAFK(serverPlayer)) {
+                boolean isExempt = AFKPlayer.isExemptFromAutoAFK(serverPlayer);
+
+                if (!isExempt) {
                     checkAFKTime(serverPlayer);
                 }
             } else {
@@ -192,7 +194,11 @@ public class AFKListener {
         long lastTime = lastCheckTime.getOrDefault(serverPlayer, 0L);
 
         if (currentTime - lastTime >= 1000) {
-            if (hasPlayerMoved(serverPlayer) || hasPlayerInteracted(serverPlayer)) {
+            boolean moved = hasPlayerMoved(serverPlayer);
+            boolean interacted = hasPlayerInteracted(serverPlayer);
+
+            if (moved || interacted) {
+                int oldTime = playerAFKTime.getOrDefault(playerUUID, 0);
                 resetAFKTimer(playerUUID);
             } else {
                 int currentAFKTime = playerAFKTime.getOrDefault(playerUUID, 0) + 1;

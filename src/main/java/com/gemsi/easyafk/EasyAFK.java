@@ -1,12 +1,9 @@
 package com.gemsi.easyafk;
 
-
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.config.ModConfig;
 import org.slf4j.Logger;
-
 import com.mojang.logging.LogUtils;
-
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
@@ -41,6 +38,8 @@ public class EasyAFK
         // Do not add this line if there are no @SubscribeEvent-annotated functions in this class, like onServerStarting() below.
         NeoForge.EVENT_BUS.register(this);
         NeoForge.EVENT_BUS.register(new AFKListener());  // Register your listener here
+
+        LOGGER.info("EasyAFK initialised successfully!");
 
     }
 
