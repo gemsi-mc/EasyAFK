@@ -1,18 +1,15 @@
 package com.gemsi.easyafk;
 
-
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.config.ModConfig;
-import org.slf4j.Logger;
-
-import com.mojang.logging.LogUtils;
-
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 // Import the listener class
 
 
@@ -23,7 +20,8 @@ public class EasyAFK
     // Define mod id in a common place for everything to reference
     public static final String MODID = "easyafk";
     // Directly reference a slf4j logger
-    private static final Logger LOGGER = LogUtils.getLogger();
+
+    private static final Logger LOGGER = LogManager.getLogger("EasyAFK");
 
     // The constructor for the mod class is the first code that is run when your mod is loaded.
     // FML will recognize some parameter types like IEventBus or ModContainer and pass them in automatically.
@@ -42,14 +40,14 @@ public class EasyAFK
         NeoForge.EVENT_BUS.register(this);
         NeoForge.EVENT_BUS.register(new AFKListener());  // Register your listener here
 
-        LOGGER.info("EasyAFK initialised successfully!");
+        LOGGER.info("Initialised successfully!");
 
     }
 
     private void commonSetup(final FMLCommonSetupEvent event)
     {
         // Some common setup code
-        LOGGER.info("EasyAFK common setup complete");
+        //LOGGER.info("Common setup complete");
     }
 
     // You can use SubscribeEvent and let the Event Bus discover methods to call
@@ -57,7 +55,7 @@ public class EasyAFK
     public void onServerStarting(ServerStartingEvent event)
     {
         // Do something when the server starts
-        LOGGER.info("EasyAFK server starting - AFK system active");
+        LOGGER.info("Start up complete.");
     }
 
 }

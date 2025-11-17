@@ -1,16 +1,19 @@
 package com.gemsi.easyafk;
 
-import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
+import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
+import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundClearTitlesPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
-import org.slf4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -18,7 +21,7 @@ import java.util.UUID;
 
 public class AFKPlayer {
 
-    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final Logger LOGGER = LogManager.getLogger("EasyAFK");
 
     public static boolean isInCombat(UUID playerUUID) {
         if (AFKListener.combatCooldown.containsKey(playerUUID)) {
@@ -55,6 +58,28 @@ public class AFKPlayer {
         player.onUpdateAbilities();
     }
 
+    private static void displayAFKTitle(ServerPlayer player) {
+        Component titlePart1 = Component.literal("You are ")
+                .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF5555))); // Red
+        Component titlePart2 = Component.literal("AFK")
+                .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xAA0000))); // Dark red
+        Component title = titlePart1.copy().append(titlePart2);
+
+        Component subtitle = Component.literal("Type /afk to exit AFK mode")
+                .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xEEEEEE)));
+
+        player.connection.send(new ClientboundSetTitlesAnimationPacket(10, 999999, 10));
+
+        // Send the title and subtitle
+        player.connection.send(new ClientboundSetTitleTextPacket(title));
+        player.connection.send(new ClientboundSetSubtitleTextPacket(subtitle));
+    }
+
+    private static void clearAFKTitle(ServerPlayer player) {
+        // Clear both title and subtitle
+        player.connection.send(new ClientboundClearTitlesPacket(true));
+    }
+
     private static final Set<Block> unsafeBlocks = new HashSet<>();
     private static final Set<Block> liquidBlocks = new HashSet<>();
 
@@ -87,46 +112,57 @@ public class AFKPlayer {
 
         var world = player.getCommandSenderWorld();
 
-        // Find safe position below player
-        for (double yOffset = y; yOffset > world.getMinBuildHeight(); yOffset--) {
-            BlockPos checkPos = new BlockPos((int) x, (int) yOffset, (int) z);
-            BlockState blockState = world.getBlockState(checkPos);
+        // Check if player is actually in a water block (not just touching water nearby)
+        BlockPos playerBlockPos = player.blockPosition();
+        boolean inWaterBlock = world.getBlockState(playerBlockPos).getBlock() == Blocks.WATER;
 
-            if (!unsafeBlocks.contains(blockState.getBlock())) {
-                // Handle water blocks specifically
-                if (blockState.getBlock() == Blocks.WATER && Config.floatOnWater) {
-                    // Find the top-most water block
-                    while (world.getBlockState(checkPos.above()).getBlock() == Blocks.WATER) {
-                        checkPos = checkPos.above();
-                        yOffset++;
-                    }
-                }
+        // Stop all motion first
+        player.setDeltaMovement(0, 0, 0);
+        player.fallDistance = 0;
 
-                // Calculate safe coordinates above the block
-                double safeY = yOffset + 1.0;
-                double safeX = checkPos.getX() + (x - checkPos.getX());
-                double safeZ = checkPos.getZ() + (z - checkPos.getZ());
+        double safeX = x;
+        double safeY = y;
+        double safeZ = z;
 
-                // Round the coordinates
-                double roundedX = Math.round(safeX * 1000.0) / 1000.0;
-                double roundedY = Math.round(safeY * 1000.0) / 1000.0;
-                int roundedYInt = (int) roundedY;
-                double roundedZ = Math.round(safeZ * 1000.0) / 1000.0;
+        if (inWaterBlock && Config.floatOnWater) {
+            // Player is in water - find the top surface to float them
+            BlockPos checkPos = playerBlockPos;
 
-                LOGGER.info("Safe Position for {}: X = {}, Y = {}, Z = {}",
-                        player.getName().getString(), roundedX, roundedYInt, roundedZ);
-                AFKListener.freezePlayerPosition(playerUUID, roundedX, roundedYInt, roundedZ);
-                break;
+            // Search upward to find the topmost water block
+            while (world.getBlockState(checkPos).getBlock() == Blocks.WATER ||
+                    world.getBlockState(checkPos.above()).getBlock() == Blocks.WATER) {
+                checkPos = checkPos.above();
             }
+
+            // Place player 1 block above the top water block (so they're floating on surface)
+            safeY = checkPos.getY(); // + 1.0
+
+            LOGGER.info("Floating {} on water at position: X = {}, Y = {}, Z = {}",
+                    player.getName().getString(), safeX, safeY, safeZ);
+
+            // Teleport player to surface
+            player.teleportTo(safeX, safeY, safeZ);
+            player.setNoGravity(true);
+
+            // Update to actual position after teleport
+            safeX = player.getX();
+            safeY = player.getY();
+            safeZ = player.getZ();
+        } else {
+            // Not in water - freeze at exact current position after motion stop
+            LOGGER.info("Freezing {} at current position: X = {}, Y = {}, Z = {}",
+                    player.getName().getString(), safeX, safeY, safeZ);
         }
+
+        // Initialise last position tracking to frozen position to prevent jittering
+        player.getPersistentData().putDouble("lastX", safeX);
+        player.getPersistentData().putDouble("lastY", safeY);
+        player.getPersistentData().putDouble("lastZ", safeZ);
+
+        AFKListener.freezePlayerPosition(playerUUID, safeX, safeY, safeZ);
 
         // Apply protections
         applyInvulnerability(player);
-
-        // Float on water if enabled
-        if (Config.floatOnWater && player.getBlockStateOn().is(Blocks.WATER)) {
-            player.setNoGravity(true);
-        }
 
         // Update AFK status
         AFKCommands.addPlayerAFK(playerUUID);
@@ -135,6 +171,9 @@ public class AFKPlayer {
         AFKListener.freezePlayerState(player);
         player.refreshDisplayName();
         player.refreshTabListName();
+
+        // Display AFK title on player's screen
+        displayAFKTitle(player);
 
         // Broadcast message if enabled
         if (Config.broadcastAFKMessages) {
@@ -153,6 +192,9 @@ public class AFKPlayer {
         removeInvulnerability(player);
         player.setNoGravity(false);
 
+        // Reset fall distance to prevent fall damage when exiting AFK
+        player.fallDistance = 0;
+
         // Clear AFK data
         AFKListener.resetAFKTimer(playerUUID);
         AFKCommands.removeAFKStatus(playerUUID);
@@ -161,6 +203,9 @@ public class AFKPlayer {
         AFKListener.clearKickWarning(playerUUID);
         player.refreshDisplayName();
         player.refreshTabListName();
+
+        // Clear AFK title from player's screen
+        clearAFKTitle(player);
 
         // Broadcast message if enabled
         if (Config.broadcastAFKMessages) {

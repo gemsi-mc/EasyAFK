@@ -12,7 +12,6 @@ import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.food.FoodData;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -23,9 +22,7 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.neoforged.fml.common.Mod;
-import com.mojang.logging.LogUtils;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
-import org.slf4j.Logger;
 import net.neoforged.neoforge.event.level.BlockEvent;
 
 import java.util.*;
@@ -34,13 +31,16 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.ServerChatEvent;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import static net.minecraft.world.damagesource.DamageTypes.*;
 
 @Mod("easyafk")
 public class AFKListener {
 
-    private static final Logger LOGGER = LogUtils.getLogger();
+
+    private static final Logger LOGGER = LogManager.getLogger("EasyAFK");
 
     private static final Map<UUID, Integer> playerAFKTime = new HashMap<>();
     private static final Map<UUID, double[]> frozenPlayers = new HashMap<>();
@@ -105,6 +105,25 @@ public class AFKListener {
     }
 
     @SubscribeEvent
+    public void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            // Ensure player state is completely reset on login
+            // This fixes issues where AFK flags persist after logout/login
+            player.setNoGravity(false);
+            player.setInvulnerable(false);
+            player.getAbilities().invulnerable = false;
+            player.onUpdateAbilities();
+            player.fallDistance = 0;
+            player.setDeltaMovement(0, player.getDeltaMovement().y, 0); // Keep Y velocity for landing
+
+            // Clear any lingering AFK titles
+            player.connection.send(new net.minecraft.network.protocol.game.ClientboundClearTitlesPacket(true));
+
+            LOGGER.info("Reset player state for {} on login", player.getName().getString());
+        }
+    }
+
+    @SubscribeEvent
     public void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             UUID playerUUID = player.getUUID();
@@ -134,6 +153,16 @@ public class AFKListener {
                 // Player is AFK - maintain frozen state
                 freezePlayer(serverPlayer);
                 maintainFrozenState(serverPlayer);
+
+                // Continue incrementing AFK timer for kick check
+                long currentTime = System.currentTimeMillis();
+                long lastTime = lastCheckTime.getOrDefault(serverPlayer, 0L);
+
+                if (currentTime - lastTime >= 1000) {
+                    int currentAFKTime = playerAFKTime.getOrDefault(playerUUID, 0) + 1;
+                    playerAFKTime.put(playerUUID, currentAFKTime);
+                    lastCheckTime.put(serverPlayer, currentTime);
+                }
 
                 // Check for auto-kick
                 if (Config.autoKickTimeout > 0) {
@@ -185,6 +214,8 @@ public class AFKListener {
                     serverPlayer.getYRot(),
                     serverPlayer.getXRot()
             );
+            // Reset fall distance to prevent accumulation during teleportation
+            serverPlayer.fallDistance = 0;
         }
     }
 
@@ -368,6 +399,54 @@ public class AFKListener {
                 event.setCanceled(true);
             } else {
                 resetAFKTimer(playerUUID);
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            UUID playerUUID = player.getUUID();
+            resetAFKTimer(playerUUID);
+
+            if (AFKCommands.getPlayerAFKStatus(playerUUID)) {
+                AFKPlayer.removeAFK(player);
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            UUID playerUUID = player.getUUID();
+            resetAFKTimer(playerUUID);
+
+            if (AFKCommands.getPlayerAFKStatus(playerUUID)) {
+                AFKPlayer.removeAFK(player);
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            UUID playerUUID = player.getUUID();
+            resetAFKTimer(playerUUID);
+
+            if (AFKCommands.getPlayerAFKStatus(playerUUID)) {
+                AFKPlayer.removeAFK(player);
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            UUID playerUUID = player.getUUID();
+            resetAFKTimer(playerUUID);
+
+            if (AFKCommands.getPlayerAFKStatus(playerUUID)) {
+                AFKPlayer.removeAFK(player);
             }
         }
     }
