@@ -347,10 +347,16 @@ public class AFKListener {
         if (event.getEntity() instanceof ServerPlayer player) {
             UUID playerUUID = player.getUUID();
             boolean isPlayerAFK = AFKCommands.getPlayerAFKStatus(playerUUID);
+            InteractionHand hand = event.getHand();
 
             if (isPlayerAFK) {
                 AFKPlayer.afkDisallow(player);
                 event.setCanceled(true);
+
+                // Restore the item in hand to prevent it from disappearing
+                ItemStack handStack = player.getItemInHand(hand);
+                player.setItemInHand(hand, handStack);
+                updateClientInventory(player, hand);
             }
         }
     }
@@ -360,10 +366,16 @@ public class AFKListener {
         if (event.getEntity() instanceof ServerPlayer player) {
             UUID playerUUID = player.getUUID();
             boolean isPlayerAFK = AFKCommands.getPlayerAFKStatus(playerUUID);
+            InteractionHand hand = event.getHand();
 
             if (isPlayerAFK) {
                 AFKPlayer.afkDisallow(player);
                 event.setCanceled(true);
+
+                // Restore the item in hand to prevent it from disappearing
+                ItemStack handStack = player.getItemInHand(hand);
+                player.setItemInHand(hand, handStack);
+                updateClientInventory(player, hand);
             }
         }
     }
@@ -399,54 +411,6 @@ public class AFKListener {
                 event.setCanceled(true);
             } else {
                 resetAFKTimer(playerUUID);
-            }
-        }
-    }
-
-    @SubscribeEvent
-    public void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
-        if (event.getEntity() instanceof ServerPlayer player) {
-            UUID playerUUID = player.getUUID();
-            resetAFKTimer(playerUUID);
-
-            if (AFKCommands.getPlayerAFKStatus(playerUUID)) {
-                AFKPlayer.removeAFK(player);
-            }
-        }
-    }
-
-    @SubscribeEvent
-    public void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
-        if (event.getEntity() instanceof ServerPlayer player) {
-            UUID playerUUID = player.getUUID();
-            resetAFKTimer(playerUUID);
-
-            if (AFKCommands.getPlayerAFKStatus(playerUUID)) {
-                AFKPlayer.removeAFK(player);
-            }
-        }
-    }
-
-    @SubscribeEvent
-    public void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
-        if (event.getEntity() instanceof ServerPlayer player) {
-            UUID playerUUID = player.getUUID();
-            resetAFKTimer(playerUUID);
-
-            if (AFKCommands.getPlayerAFKStatus(playerUUID)) {
-                AFKPlayer.removeAFK(player);
-            }
-        }
-    }
-
-    @SubscribeEvent
-    public void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
-        if (event.getEntity() instanceof ServerPlayer player) {
-            UUID playerUUID = player.getUUID();
-            resetAFKTimer(playerUUID);
-
-            if (AFKCommands.getPlayerAFKStatus(playerUUID)) {
-                AFKPlayer.removeAFK(player);
             }
         }
     }
