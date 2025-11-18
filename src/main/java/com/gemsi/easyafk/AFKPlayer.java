@@ -58,7 +58,7 @@ public class AFKPlayer {
         player.onUpdateAbilities();
     }
 
-    private static void displayAFKTitle(ServerPlayer player) {
+    public static void displayAFKTitle(ServerPlayer player) {
         Component titlePart1 = Component.literal("You are ")
                 .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF5555))); // Red
         Component titlePart2 = Component.literal("AFK")
