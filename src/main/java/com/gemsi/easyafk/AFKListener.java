@@ -15,6 +15,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.food.FoodData;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.neoforge.common.util.TriState;
 import net.neoforged.neoforge.event.entity.living.LivingEvent;
 import net.neoforged.neoforge.event.entity.player.ItemEntityPickupEvent;
@@ -49,6 +50,7 @@ public class AFKListener {
     public static final Map<UUID, Long> damageTimestamps = new HashMap<>();
     private final Map<ServerPlayer, Long> lastCheckTime = new HashMap<>();
     private static final Map<UUID, Boolean> kickWarningShown = new HashMap<>();
+    private static final Map<UUID, java.util.concurrent.atomic.AtomicBoolean> recentlyShowedMessage = new java.util.concurrent.ConcurrentHashMap<>();
 
     public static boolean isRecentDamage(UUID playerUUID) {
         if (damageTimestamps.containsKey(playerUUID)) {
@@ -85,6 +87,38 @@ public class AFKListener {
         float saturation;
         float health;
         Map<MobEffect, MobEffectInstance> potionEffects;
+    }
+
+    private void handleAFKAction(ServerPlayer player) {
+        UUID playerUUID = player.getUUID();
+
+        // Get or create AtomicBoolean for this player
+        java.util.concurrent.atomic.AtomicBoolean flag = recentlyShowedMessage.computeIfAbsent(
+                playerUUID,
+                k -> new java.util.concurrent.atomic.AtomicBoolean(false)
+        );
+
+        // Only show message if we can successfully change false to true (atomic operation)
+        if (flag.compareAndSet(false, true)) {
+            AFKPlayer.afkDisallow(player);
+
+            // Schedule flag reset after 6 ticks (300ms)
+            player.getServer().tell(new net.minecraft.server.TickTask(
+                    player.getServer().getTickCount() + 6,
+                    () -> flag.set(false)
+            ));
+        }
+
+        // Always sync inventory to prevent items from disappearing
+        player.getServer().execute(() -> {
+            player.inventoryMenu.sendAllDataToRemote();
+
+            ItemStack mainHandStack = player.getItemInHand(InteractionHand.MAIN_HAND);
+            ItemStack offHandStack = player.getItemInHand(InteractionHand.OFF_HAND);
+
+            player.connection.send(new ClientboundContainerSetSlotPacket(-2, 0, player.getInventory().selected, mainHandStack));
+            player.connection.send(new ClientboundContainerSetSlotPacket(-2, 0, 40, offHandStack));
+        });
     }
 
     @SubscribeEvent
@@ -315,8 +349,8 @@ public class AFKListener {
             boolean isPlayerAFK = AFKCommands.getPlayerAFKStatus(playerUUID);
 
             if (isPlayerAFK) {
-                AFKPlayer.afkDisallow(sPlayer);
                 event.setCanceled(true);
+                handleAFKAction(sPlayer);
             } else {
                 resetAFKTimer(playerUUID);
             }
@@ -328,61 +362,38 @@ public class AFKListener {
         if (event.getEntity() instanceof ServerPlayer player) {
             UUID playerUUID = player.getUUID();
             boolean isPlayerAFK = AFKCommands.getPlayerAFKStatus(playerUUID);
-            InteractionHand hand = event.getHand();
 
             if (isPlayerAFK) {
-                AFKPlayer.afkDisallow(player);
                 event.setCanceled(true);
-
-                // Restore the item in hand
-                ItemStack handStack = player.getItemInHand(hand);
-                player.setItemInHand(hand, handStack);
-                updateClientInventory(player, hand);
+                handleAFKAction(player);
             }
         }
     }
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onPlayerRightClickItem(PlayerInteractEvent.RightClickItem event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             UUID playerUUID = player.getUUID();
             boolean isPlayerAFK = AFKCommands.getPlayerAFKStatus(playerUUID);
-            InteractionHand hand = event.getHand();
 
             if (isPlayerAFK) {
-                AFKPlayer.afkDisallow(player);
                 event.setCanceled(true);
-
-                // Restore the item in hand to prevent it from disappearing
-                ItemStack handStack = player.getItemInHand(hand);
-                player.setItemInHand(hand, handStack);
-                updateClientInventory(player, hand);
+                handleAFKAction(player);
             }
         }
     }
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
     private void onPlayerEntityInteract(PlayerInteractEvent.EntityInteract event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             UUID playerUUID = player.getUUID();
             boolean isPlayerAFK = AFKCommands.getPlayerAFKStatus(playerUUID);
-            InteractionHand hand = event.getHand();
 
             if (isPlayerAFK) {
-                AFKPlayer.afkDisallow(player);
                 event.setCanceled(true);
-
-                // Restore the item in hand to prevent it from disappearing
-                ItemStack handStack = player.getItemInHand(hand);
-                player.setItemInHand(hand, handStack);
-                updateClientInventory(player, hand);
+                handleAFKAction(player);
             }
         }
-    }
-
-    private void updateClientInventory(ServerPlayer player, InteractionHand hand) {
-        player.connection.send(new ClientboundContainerSetSlotPacket(
-                -2, 0, player.getInventory().selected, player.getItemInHand(hand)));
     }
 
     @SubscribeEvent
@@ -394,8 +405,8 @@ public class AFKListener {
             if (!isPlayerAFK) {
                 resetAFKTimer(playerUUID);
             } else {
-                AFKPlayer.afkDisallow(player);
                 event.setCanceled(true);
+                handleAFKAction(player);
             }
         }
     }
