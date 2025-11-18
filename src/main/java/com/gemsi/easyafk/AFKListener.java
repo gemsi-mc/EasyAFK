@@ -102,15 +102,15 @@ public class AFKListener {
         if (flag.compareAndSet(false, true)) {
             AFKPlayer.afkDisallow(player);
 
-            // Schedule flag reset after 6 ticks (300ms)
-            player.getServer().tell(new net.minecraft.server.TickTask(
-                    player.getServer().getTickCount() + 6,
+            // Schedule flag reset after 1 tick (50ms)
+            Objects.requireNonNull(player.getServer()).tell(new net.minecraft.server.TickTask(
+                    player.getServer().getTickCount() + 1,
                     () -> flag.set(false)
             ));
         }
 
         // Always sync inventory to prevent items from disappearing
-        player.getServer().execute(() -> {
+        Objects.requireNonNull(player.getServer()).execute(() -> {
             player.inventoryMenu.sendAllDataToRemote();
 
             ItemStack mainHandStack = player.getItemInHand(InteractionHand.MAIN_HAND);
