@@ -13,6 +13,10 @@ tasks.named('wrapper', Wrapper).configure {
     // (Verify by checking gradle/wrapper/gradle-wrapper.properties to see if distributionUrl now points to `-all`)
     distributionType = Wrapper.DistributionType.BIN
 }
+tasks.named('jar', Jar) {
+    archiveBaseName = "${mod_id}"
+    archiveVersion = "neoforge-${minecraft_version}-${mod_version}"
+}
 
 version = mod_version
 group = mod_group_id
