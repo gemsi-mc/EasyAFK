@@ -40,7 +40,6 @@ import static net.minecraft.world.damagesource.DamageTypes.*;
 @Mod("easyafk")
 public class AFKListener {
 
-
     private static final Logger LOGGER = LogManager.getLogger("EasyAFK");
 
     private static final Map<UUID, Integer> playerAFKTime = new HashMap<>();
