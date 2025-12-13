@@ -59,14 +59,8 @@ public class AFKPlayer {
     }
 
     public static void displayAFKTitle(ServerPlayer player) {
-        Component titlePart1 = Component.literal("You are ")
-                .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF5555))); // Red
-        Component titlePart2 = Component.literal("AFK")
-                .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xAA0000))); // Dark red
-        Component title = titlePart1.copy().append(titlePart2);
-
-        Component subtitle = Component.literal("Type /afk to exit AFK mode")
-                .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xEEEEEE)));
+        Component title = ColorParser.parseColors(Config.msgTitleAfk);
+        Component subtitle = ColorParser.parseColors(Config.msgSubtitleAfk);
 
         player.connection.send(new ClientboundSetTitlesAnimationPacket(10, 999999, 10));
 
@@ -178,8 +172,8 @@ public class AFKPlayer {
         // Broadcast message if enabled
         if (Config.broadcastAFKMessages) {
             String playerName = player.getName().getString();
-            Component serverMessage = Component.literal(playerName + " is now AFK.")
-                    .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF5050)));
+            String message = Config.msgAfkEnter.replace("{player}", playerName);
+            Component serverMessage = ColorParser.parseColors(message);
             assert ServerLifecycleHooks.getCurrentServer() != null;
             ServerLifecycleHooks.getCurrentServer().getPlayerList().broadcastSystemMessage(serverMessage, false);
         }
@@ -210,17 +204,15 @@ public class AFKPlayer {
         // Broadcast message if enabled
         if (Config.broadcastAFKMessages) {
             String playerName = player.getName().getString();
-            Component serverMessage = Component.literal(playerName + " is no longer AFK.")
-                    .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x50FF50)));
+            String message = Config.msgAfkExit.replace("{player}", playerName);
+            Component serverMessage = ColorParser.parseColors(message);
             assert ServerLifecycleHooks.getCurrentServer() != null;
             ServerLifecycleHooks.getCurrentServer().getPlayerList().broadcastSystemMessage(serverMessage, false);
         }
     }
 
     public static void afkDisallow(ServerPlayer player) {
-        String message = "You cannot do this while AFK!";
-        Component coloredMessage = Component.literal(message)
-                .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF5050)));
+        Component coloredMessage = ColorParser.parseColors(Config.msgCannotDoWhileAfk);
         player.sendSystemMessage(coloredMessage);
     }
 }
