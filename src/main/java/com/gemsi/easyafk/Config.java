@@ -7,7 +7,7 @@ import net.neoforged.neoforge.common.ModConfigSpec;
 
 import java.util.List;
 
-@EventBusSubscriber(modid = EasyAFK.MODID, bus = EventBusSubscriber.Bus.MOD)
+@EventBusSubscriber(modid = EasyAFK.MODID)
 public class Config {
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
 
@@ -80,6 +80,67 @@ public class Config {
             .comment("Minimum permission level to be exempt from auto-AFK (0-4, 0 disables, default: 3)")
             .defineInRange("minPermissionLevel", 3, 0, 4);
 
+    // Message Customization
+    private static final ModConfigSpec.ConfigValue<String> MSG_AFK_ENTER = BUILDER
+            .comment("",
+                    "===========================================",
+                    "MESSAGE CUSTOMIZATION",
+                    "===========================================",
+                    "All messages support color formatting:",
+                    "  - Minecraft codes: &c, &4, &l (bold), &n (underline), etc.",
+                    "  - Hex colors: &#RRGGBB (e.g., &#FF5050)",
+                    "  - Gradients: <gradient:#FF0000:#0000FF>text</gradient>",
+                    "  - Rainbow: <rainbow>text</rainbow>",
+                    "  - Use {player} for player name in broadcast messages",
+                    "===========================================",
+                    "",
+                    "Message when player enters AFK")
+            .define("messages.afkEnter", "&c{player} is now AFK.");
+
+    private static final ModConfigSpec.ConfigValue<String> MSG_AFK_EXIT = BUILDER
+            .comment("Message when player exits AFK")
+            .define("messages.afkExit", "&a{player} is no longer AFK.");
+
+    private static final ModConfigSpec.ConfigValue<String> MSG_TITLE_AFK = BUILDER
+            .comment("Title text shown to AFK player")
+            .define("messages.titleAfk", "&cYou are &4AFK");
+
+    private static final ModConfigSpec.ConfigValue<String> MSG_SUBTITLE_AFK = BUILDER
+            .comment("Subtitle text shown to AFK player")
+            .define("messages.subtitleAfk", "&fType /afk to exit AFK mode");
+
+    private static final ModConfigSpec.ConfigValue<String> MSG_CANNOT_DO_WHILE_AFK = BUILDER
+            .comment("Message shown when trying to perform action while AFK")
+            .define("messages.cannotDoWhileAfk", "&cYou cannot do this while AFK!");
+
+    private static final ModConfigSpec.ConfigValue<String> MSG_CANNOT_AFK_FALLING = BUILDER
+            .comment("Message when trying to go AFK while falling")
+            .define("messages.cannotAfkFalling", "&cYou cannot go into AFK whilst falling!");
+
+    private static final ModConfigSpec.ConfigValue<String> MSG_CANNOT_AFK_JUMPING = BUILDER
+            .comment("Message when trying to go AFK while jumping")
+            .define("messages.cannotAfkJumping", "&cYou cannot go into AFK whilst jumping!");
+
+    private static final ModConfigSpec.ConfigValue<String> MSG_CANNOT_AFK_COMBAT = BUILDER
+            .comment("Message when trying to go AFK while in combat")
+            .define("messages.cannotAfkCombat", "&cYou cannot go into AFK whilst you are in combat!");
+
+    private static final ModConfigSpec.ConfigValue<String> MSG_CANNOT_AFK_DAMAGE = BUILDER
+            .comment("Message when trying to go AFK after taking damage")
+            .define("messages.cannotAfkDamage", "&cYou can't go AFK! Stay alert, danger is everywhere!");
+
+    private static final ModConfigSpec.ConfigValue<String> MSG_CANNOT_AFK_RIDING = BUILDER
+            .comment("Message when trying to go AFK while riding entity")
+            .define("messages.cannotAfkRiding", "&cYou cannot go AFK while riding an entity!");
+
+    private static final ModConfigSpec.ConfigValue<String> MSG_CANNOT_AFK_DANGEROUS = BUILDER
+            .comment("Message when trying to go AFK in dangerous location")
+            .define("messages.cannotAfkDangerous", "&cYou cannot go AFK in a dangerous location!");
+
+    private static final ModConfigSpec.ConfigValue<String> AFK_PREFIX = BUILDER
+            .comment("Prefix shown before player name in tab list when AFK")
+            .define("messages.afkPrefix", "&7[AFK] ");
+
     static final ModConfigSpec SPEC = BUILDER.build();
 
     // Static getters for easy access
@@ -100,6 +161,21 @@ public class Config {
     public static List<? extends String> exemptPlayers;
     public static int minPermissionLevel;
 
+    // Message strings
+    public static String msgAfkEnter;
+    public static String msgAfkExit;
+    public static String msgTitleAfk;
+    public static String msgSubtitleAfk;
+    public static String msgCannotDoWhileAfk;
+    public static String msgCannotAfkFalling;
+    public static String msgCannotAfkJumping;
+    public static String msgCannotAfkCombat;
+    public static String msgCannotAfkDamage;
+    public static String msgCannotAfkRiding;
+    public static String msgCannotAfkDangerous;
+    public static String afkPrefix;
+    public static int colorAfkPlayerName;
+
     @SubscribeEvent
     static void onLoad(final ModConfigEvent event) {
         afkTimeout = AFK_TIMEOUT.get();
@@ -118,5 +194,29 @@ public class Config {
         freezePotionEffects = FREEZE_POTION_EFFECTS.get();
         exemptPlayers = EXEMPT_PLAYERS.get();
         minPermissionLevel = MIN_PERMISSION_LEVEL.get();
+
+        // Load messages
+        msgAfkEnter = MSG_AFK_ENTER.get();
+        msgAfkExit = MSG_AFK_EXIT.get();
+        msgTitleAfk = MSG_TITLE_AFK.get();
+        msgSubtitleAfk = MSG_SUBTITLE_AFK.get();
+        msgCannotDoWhileAfk = MSG_CANNOT_DO_WHILE_AFK.get();
+        msgCannotAfkFalling = MSG_CANNOT_AFK_FALLING.get();
+        msgCannotAfkJumping = MSG_CANNOT_AFK_JUMPING.get();
+        msgCannotAfkCombat = MSG_CANNOT_AFK_COMBAT.get();
+        msgCannotAfkDamage = MSG_CANNOT_AFK_DAMAGE.get();
+        msgCannotAfkRiding = MSG_CANNOT_AFK_RIDING.get();
+        msgCannotAfkDangerous = MSG_CANNOT_AFK_DANGEROUS.get();
+        afkPrefix = AFK_PREFIX.get();
+
+        // Only keep player name color as it's not part of the color-coded prefix string
+        colorAfkPlayerName = parseColor("#FFFFFF"); // Default white
+    }
+
+    /**
+     * Parse a hex color string (#RRGGBB) to an RGB integer
+     */
+    private static int parseColor(String hexColor) {
+        return ColorParser.parseColor(hexColor);
     }
 }

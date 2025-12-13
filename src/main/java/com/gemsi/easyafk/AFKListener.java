@@ -486,11 +486,12 @@ public class AFKListener {
         if (isPlayerAFK) {
             String playerName = player.getName().getString();
 
-            Component afkPrefix = Component.literal("[AFK] ")
-                    .setStyle(Style.EMPTY.withBold(false).withColor(TextColor.fromRgb(0x808080)));
+            // Parse the AFK prefix with color codes
+            Component afkPrefix = ColorParser.parseColors(Config.afkPrefix);
 
+            // Create player name component (white by default, can be customized)
             Component playerNameComponent = Component.literal(playerName)
-                    .setStyle(Style.EMPTY.withBold(false).withColor(TextColor.fromRgb(0xFFFFFF)));
+                    .setStyle(Style.EMPTY.withBold(false).withColor(TextColor.fromRgb(Config.colorAfkPlayerName)));
 
             Component tablistName = afkPrefix.copy().append(playerNameComponent);
             event.setDisplayName(tablistName);

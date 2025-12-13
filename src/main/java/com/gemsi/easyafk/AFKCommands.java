@@ -45,13 +45,13 @@ public class AFKCommands {
 
                                 // Check if falling
                                 if (player.fallDistance > 1) {
-                                    sendErrorMessage(player, "You cannot go into AFK whilst falling!");
+                                    sendErrorMessage(player, Config.msgCannotAfkFalling);
                                     return 0;
                                 }
 
                                 // Check if jumping or has upward velocity
                                 if (!player.onGround() && !player.isInWater()) {
-                                    sendErrorMessage(player, "You cannot go into AFK whilst jumping!");
+                                    sendErrorMessage(player, Config.msgCannotAfkJumping);
                                     return 0;
                                 }
 
@@ -60,26 +60,26 @@ public class AFKCommands {
                                     long currentTime = System.currentTimeMillis();
                                     long combatCooldown = AFKListener.combatCooldown.getOrDefault(playerUUID, 0L);
                                     if (currentTime - combatCooldown < Config.combatCooldown) {
-                                        sendErrorMessage(player, "You cannot go into AFK whilst you are in combat!");
+                                        sendErrorMessage(player, Config.msgCannotAfkCombat);
                                         return 0;
                                     }
                                 }
 
                                 // Check recent damage
                                 if (AFKListener.isRecentDamage(playerUUID)) {
-                                    sendErrorMessage(player, "You can't go AFK! Stay alert, danger is everywhere!");
+                                    sendErrorMessage(player, Config.msgCannotAfkDamage);
                                     return 0;
                                 }
 
                                 // Check if riding entity
                                 if (player.isPassenger()) {
-                                    sendErrorMessage(player, "You cannot go AFK while riding an entity!");
+                                    sendErrorMessage(player, Config.msgCannotAfkRiding);
                                     return 0;
                                 }
 
                                 // Check if in dangerous location (lava, fire, etc.)
                                 if (player.isOnFire() || player.isInLava()) {
-                                    sendErrorMessage(player, "You cannot go AFK in a dangerous location!");
+                                    sendErrorMessage(player, Config.msgCannotAfkDangerous);
                                     return 0;
                                 }
 
@@ -99,8 +99,7 @@ public class AFKCommands {
     }
 
     private void sendErrorMessage(ServerPlayer player, String message) {
-        Component coloredMessage = Component.literal(message)
-                .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF5050)));
+        Component coloredMessage = ColorParser.parseColors(message);
         player.sendSystemMessage(coloredMessage);
     }
 
