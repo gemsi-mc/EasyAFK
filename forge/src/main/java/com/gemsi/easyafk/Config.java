@@ -178,39 +178,42 @@ public class Config {
 
     @SubscribeEvent
     static void onLoad(final ModConfigEvent event) {
-        afkTimeout = AFK_TIMEOUT.get();
-        autoKickTimeout = AUTO_KICK_TIMEOUT.get();
-        movementThreshold = MOVEMENT_THRESHOLD.get();
-        combatCooldown = COMBAT_COOLDOWN.get();
-        damageCooldown = DAMAGE_COOLDOWN.get();
-        broadcastAFKMessages = BROADCAST_AFK_MESSAGES.get();
-        showAFKInTab = SHOW_AFK_IN_TAB.get();
-        sendKickWarning = SEND_KICK_WARNING.get();
-        kickWarningTime = KICK_WARNING_TIME.get();
-        preventFallDamage = PREVENT_FALL_DAMAGE.get();
-        floatOnWater = FLOAT_ON_WATER.get();
-        freezeHunger = FREEZE_HUNGER.get();
-        freezeHealth = FREEZE_HEALTH.get();
-        freezePotionEffects = FREEZE_POTION_EFFECTS.get();
-        exemptPlayers = EXEMPT_PLAYERS.get();
-        minPermissionLevel = MIN_PERMISSION_LEVEL.get();
 
-        // Load messages
-        msgAfkEnter = MSG_AFK_ENTER.get();
-        msgAfkExit = MSG_AFK_EXIT.get();
-        msgTitleAfk = MSG_TITLE_AFK.get();
-        msgSubtitleAfk = MSG_SUBTITLE_AFK.get();
-        msgCannotDoWhileAfk = MSG_CANNOT_DO_WHILE_AFK.get();
-        msgCannotAfkFalling = MSG_CANNOT_AFK_FALLING.get();
-        msgCannotAfkJumping = MSG_CANNOT_AFK_JUMPING.get();
-        msgCannotAfkCombat = MSG_CANNOT_AFK_COMBAT.get();
-        msgCannotAfkDamage = MSG_CANNOT_AFK_DAMAGE.get();
-        msgCannotAfkRiding = MSG_CANNOT_AFK_RIDING.get();
-        msgCannotAfkDangerous = MSG_CANNOT_AFK_DANGEROUS.get();
-        afkPrefix = AFK_PREFIX.get();
+        if (event instanceof ModConfigEvent.Loading) {
+            afkTimeout = AFK_TIMEOUT.get();
+            autoKickTimeout = AUTO_KICK_TIMEOUT.get();
+            movementThreshold = MOVEMENT_THRESHOLD.get();
+            combatCooldown = COMBAT_COOLDOWN.get();
+            damageCooldown = DAMAGE_COOLDOWN.get();
+            broadcastAFKMessages = BROADCAST_AFK_MESSAGES.get();
+            showAFKInTab = SHOW_AFK_IN_TAB.get();
+            sendKickWarning = SEND_KICK_WARNING.get();
+            kickWarningTime = KICK_WARNING_TIME.get();
+            preventFallDamage = PREVENT_FALL_DAMAGE.get();
+            floatOnWater = FLOAT_ON_WATER.get();
+            freezeHunger = FREEZE_HUNGER.get();
+            freezeHealth = FREEZE_HEALTH.get();
+            freezePotionEffects = FREEZE_POTION_EFFECTS.get();
+            exemptPlayers = EXEMPT_PLAYERS.get();
+            minPermissionLevel = MIN_PERMISSION_LEVEL.get();
 
-        // Only keep player name color as it's not part of the color-coded prefix string
-        colorAfkPlayerName = parseColor("#FFFFFF"); // Default white
+            // Load messages
+            msgAfkEnter = MSG_AFK_ENTER.get();
+            msgAfkExit = MSG_AFK_EXIT.get();
+            msgTitleAfk = MSG_TITLE_AFK.get();
+            msgSubtitleAfk = MSG_SUBTITLE_AFK.get();
+            msgCannotDoWhileAfk = MSG_CANNOT_DO_WHILE_AFK.get();
+            msgCannotAfkFalling = MSG_CANNOT_AFK_FALLING.get();
+            msgCannotAfkJumping = MSG_CANNOT_AFK_JUMPING.get();
+            msgCannotAfkCombat = MSG_CANNOT_AFK_COMBAT.get();
+            msgCannotAfkDamage = MSG_CANNOT_AFK_DAMAGE.get();
+            msgCannotAfkRiding = MSG_CANNOT_AFK_RIDING.get();
+            msgCannotAfkDangerous = MSG_CANNOT_AFK_DANGEROUS.get();
+            afkPrefix = AFK_PREFIX.get();
+
+            // Only keep player name color as it's not part of the color-coded prefix string
+            colorAfkPlayerName = parseColor("#FFFFFF"); // Default white
+        }
     }
 
     /**
