@@ -8,8 +8,6 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.Style;
-import net.minecraft.network.chat.TextColor;
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
@@ -20,8 +18,6 @@ import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.food.FoodData;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -46,6 +42,8 @@ public class AFKListener {
     private static final Map<ServerPlayer, Long> lastCheckTime = new HashMap<>();
     private static final Map<UUID, Boolean> kickWarningShown = new HashMap<>();
     private static final Map<UUID, java.util.concurrent.atomic.AtomicBoolean> recentlyShowedMessage = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<UUID, Boolean> wasPassengerWhenAfk = new HashMap<>();
+
 
     // Store last positions since Fabric doesn't have getPersistentData()
     private static final Map<UUID, double[]> lastPositions = new HashMap<>();
@@ -135,6 +133,10 @@ public class AFKListener {
             lastCheckTime.remove(player);
             kickWarningShown.remove(playerUUID);
             lastPositions.remove(playerUUID);
+            wasPassengerWhenAfk.remove(playerUUID);
+            frozenPlayers.remove(playerUUID);
+            frozenDataMap.remove(playerUUID);
+            recentlyShowedMessage.remove(playerUUID);
         });
 
         // Player join
@@ -142,7 +144,9 @@ public class AFKListener {
             ServerPlayer player = handler.getPlayer();
             // Ensure player state is completely reset on login
             player.setNoGravity(false);
-            player.setInvulnerable(false);
+            if (!player.gameMode.isCreative()) {
+                player.setInvulnerable(false);
+            }
             player.getAbilities().invulnerable = false;
             player.onUpdateAbilities();
             player.fallDistance = 0;
@@ -176,30 +180,49 @@ public class AFKListener {
                         checkAFKTime(serverPlayer);
                     }
                 } else {
-                    // Player is AFK - first freeze them, then check if they're trying to escape
-                    if (frozenPlayers.containsKey(playerUUID)) {
-                        // Freeze player position first
-                        freezePlayer(serverPlayer);
+                    // Check if player is trying to jump BEFORE freezing them
+                    boolean tryingToJump = serverPlayer.getDeltaMovement().y > 0.1;
 
-                        // Now check if player is actively trying to move (input-based, not position-based)
-                        // Check player input - xxa and zza are horizontal movement inputs
-                        boolean hasMovementInput = serverPlayer.xxa != 0 || serverPlayer.zza != 0;
+                    if (tryingToJump) {
+                        // Player is jumping - remove AFK immediately
+                        AFKPlayer.removeAFK(serverPlayer);
+                        frozenDataMap.remove(playerUUID);
+                        wasPassengerWhenAfk.remove(playerUUID);
+                        LOGGER.info("{} removed from AFK due to jumping", serverPlayer.getName().getString());
+                        continue; // Skip the rest - don't freeze this tick
+                    }
 
-                        // Check for upward velocity that wasn't caused by our teleport
-                        // Only check after they've been frozen for at least 1 tick
-                        double verticalVelocity = serverPlayer.getDeltaMovement().y;
-                        boolean isJumping = verticalVelocity > 0.3; // Higher threshold to avoid false positives
+                    // Track if they were sitting when AFK started
+                    if (!wasPassengerWhenAfk.containsKey(playerUUID)) {
+                        wasPassengerWhenAfk.put(playerUUID, serverPlayer.isPassenger());
+                    }
 
-                        // Only remove AFK if there's actual player input
-                        if (hasMovementInput || isJumping) {
-                            AFKPlayer.removeAFK(serverPlayer);
-                            frozenDataMap.remove(playerUUID);
-                            LOGGER.info("{} removed from AFK due to movement input", serverPlayer.getName().getString());
-                            continue; // Exit early, don't maintain frozen state
-                        }
+                    // Check if player is sneaking while on a chair (trying to dismount)
+                    boolean wasPassenger = wasPassengerWhenAfk.getOrDefault(playerUUID, false);
+                    if (wasPassenger && serverPlayer.isPassenger() && serverPlayer.isShiftKeyDown()) {
+                        // They're sneaking while on a chair - remove AFK so they can dismount
+                        AFKPlayer.removeAFK(serverPlayer);
+                        frozenDataMap.remove(playerUUID);
+                        wasPassengerWhenAfk.remove(playerUUID);
+                        LOGGER.info("{} removed from AFK due to sneaking on chair", serverPlayer.getName().getString());
+                        continue;
+                    }
+
+                    // Check if player dismounted from a chair (backup check)
+                    if (wasPassenger && !serverPlayer.isPassenger()) {
+                        // They were sitting and now they're not - they dismounted
+                        AFKPlayer.removeAFK(serverPlayer);
+                        frozenDataMap.remove(playerUUID);
+                        wasPassengerWhenAfk.remove(playerUUID);
+                        LOGGER.info("{} removed from AFK due to dismounting", serverPlayer.getName().getString());
+                        continue;
                     }
 
                     // Player is AFK - maintain frozen state
+                    // Only freeze position if they're NOT on a chair (passengers)
+                    if (!serverPlayer.isPassenger()) {
+                        freezePlayer(serverPlayer);
+                    }
                     maintainFrozenState(serverPlayer);
 
                     // Continue incrementing AFK timer for kick check
@@ -255,7 +278,7 @@ public class AFKListener {
                 boolean isPlayerAFK = AFKCommands.getPlayerAFKStatus(playerUUID);
 
                 if (isPlayerAFK) {
-                    AFKPlayer.afkDisallow(serverPlayer);
+                    handleAFKAction(serverPlayer);
                     return InteractionResult.FAIL;
                 } else {
                     resetAFKTimer(playerUUID);
@@ -273,11 +296,8 @@ public class AFKListener {
                 if (!isPlayerAFK) {
                     resetAFKTimer(playerUUID);
                 } else {
-                    Item item = serverPlayer.getItemInHand(hand).getItem();
-                    if (item instanceof BlockItem) {
-                        handleAFKAction(serverPlayer);
-                        return InteractionResult.FAIL;
-                    }
+                    handleAFKAction(serverPlayer);
+                    return InteractionResult.FAIL;
                 }
             }
             return InteractionResult.PASS;
@@ -328,6 +348,23 @@ public class AFKListener {
                 }
             }
         });
+
+        // Prevent mounting entities while AFK
+        UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
+            if (player instanceof ServerPlayer serverPlayer) {
+                UUID playerUUID = serverPlayer.getUUID();
+                boolean isPlayerAFK = AFKCommands.getPlayerAFKStatus(playerUUID);
+
+                if (isPlayerAFK) {
+                    // Block mounting any entity while AFK
+                    handleAFKAction(serverPlayer);
+                    return InteractionResult.FAIL;
+                } else {
+                    resetAFKTimer(playerUUID);
+                }
+            }
+            return InteractionResult.PASS;
+        });
     }
 
     static void resetAFKTimer(UUID playerUUID) {
@@ -367,13 +404,20 @@ public class AFKListener {
             resetAFKTimer(playerUUID);
             lastPositions.put(playerUUID, new double[]{currentX, currentY, currentZ});
         } else if (lastPos == null) {
-            // Initialize position tracking
+            // Initialise position tracking
             lastPositions.put(playerUUID, new double[]{currentX, currentY, currentZ});
         }
 
         // Auto-AFK if timeout exceeded
         int afkTime = playerAFKTime.getOrDefault(playerUUID, 0);
         if (afkTime >= Config.afkTimeout) {
+            // Validate if player can enter AFK before applying it
+            String errorMessage = AFKCommands.canEnterAFK(player);
+            if (errorMessage != null) {
+                resetAFKTimer(playerUUID);
+                return;
+            }
+
             AFKPlayer.applyAFK(player);
             LOGGER.info("{} has been automatically marked as AFK ({}s inactive).", player.getName().getString(), afkTime);
         }
