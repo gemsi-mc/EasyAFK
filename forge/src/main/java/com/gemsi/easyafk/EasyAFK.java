@@ -42,5 +42,10 @@ public class EasyAFK
     public void onServerStarting(ServerStartingEvent event)
     {
         LOGGER.info("Start up complete.");
+        String version = ModList.get()
+                .getModContainerById("easyafk")
+                .map(container -> container.getModInfo().getVersion().toString())
+                .orElse("UNKNOWN");
+        VersionChecker.checkForUpdates(version);
     }
 }

@@ -3,6 +3,7 @@ package com.gemsi.easyafk;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.loader.api.FabricLoader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -26,6 +27,12 @@ public class EasyAFK implements ModInitializer {
         // Server lifecycle events
         ServerLifecycleEvents.SERVER_STARTING.register(server -> {
             LOGGER.info("Start up complete.");
+            String version = FabricLoader.getInstance()
+                    .getModContainer("easyafk")
+                    .map(container -> container.getMetadata().getVersion().getFriendlyString())
+                    .orElse("UNKNOWN");
+
+            VersionChecker.checkForUpdates(version);
         });
 
         LOGGER.info("Initialised successfully!");

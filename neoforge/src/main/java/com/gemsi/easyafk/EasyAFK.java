@@ -3,6 +3,7 @@ package com.gemsi.easyafk;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
@@ -39,6 +40,11 @@ public class EasyAFK
     public void onServerStarting(ServerStartingEvent event)
     {
         LOGGER.info("Start up complete.");
+        String version = ModList.get()
+                .getModContainerById("easyafk")
+                .map(container -> container.getModInfo().getVersion().toString())
+                .orElse("UNKNOWN");
+        VersionChecker.checkForUpdates(version);
     }
 
 }
