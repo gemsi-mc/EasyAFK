@@ -51,7 +51,9 @@ public class AFKPlayer {
     }
 
     public static void removeInvulnerability(ServerPlayer player) {
-        player.setInvulnerable(false);
+        if (!player.gameMode.isCreative()) {
+            player.setInvulnerable(false);
+        }
         player.getAbilities().invulnerable = false;
         player.onUpdateAbilities();
     }
@@ -140,9 +142,6 @@ public class AFKPlayer {
             // Place player at the top water block surface
             safeY = checkPos.getY();
 
-            LOGGER.info("Floating {} on water at position: X = {}, Y = {}, Z = {} (searched {} blocks up)",
-                    player.getName().getString(), safeX, safeY, safeZ, searchCount);
-
             // Teleport player to surface
             player.teleportTo(safeX, safeY, safeZ);
             player.setNoGravity(true);
@@ -151,10 +150,6 @@ public class AFKPlayer {
             safeX = player.getX();
             safeY = player.getY();
             safeZ = player.getZ();
-        } else {
-            // Not in water - freeze at exact current position after motion stop
-            LOGGER.info("Freezing {} at current position: X = {}, Y = {}, Z = {}",
-                    player.getName().getString(), safeX, safeY, safeZ);
         }
 
         // Initialise last position tracking to frozen position to prevent jittering

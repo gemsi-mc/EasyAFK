@@ -145,8 +145,10 @@ public class AFKListener {
         if (event.getEntity() instanceof ServerPlayer player) {
             // Ensure player state is completely reset on login
             // This fixes issues where AFK flags persist after logout/login
+            if (!player.gameMode.isCreative()) {
+                player.setInvulnerable(false);
+            }
             player.setNoGravity(false);
-            player.setInvulnerable(false);
             player.getAbilities().invulnerable = false;
             player.onUpdateAbilities();
             player.fallDistance = 0;
@@ -273,6 +275,12 @@ public class AFKListener {
                 playerAFKTime.put(playerUUID, currentAFKTime);
 
                 if (currentAFKTime >= Config.afkTimeout) {
+                    String errorMessage = AFKCommands.canEnterAFK(serverPlayer);
+                    if (errorMessage != null) {
+                        resetAFKTimer(playerUUID);
+                        return;
+                    }
+
                     AFKPlayer.applyAFK(serverPlayer);
                 }
             }
@@ -472,9 +480,15 @@ public class AFKListener {
             UUID playerUUID = player.getUUID();
             boolean isPlayerAFK = AFKCommands.getPlayerAFKStatus(playerUUID);
 
-            if (isPlayerAFK && event.isMounting()) {
-                event.setCanceled(true);
-                AFKPlayer.afkDisallow(player);
+            if (isPlayerAFK) {
+                if (event.isMounting()) {
+                    event.setCanceled(true);
+                    AFKPlayer.afkDisallow(player);
+                } else {
+                    AFKPlayer.removeAFK(player);
+                    frozenDataMap.remove(playerUUID);
+                    LOGGER.info("{} removed from AFK due to dismounting", player.getName().getString());
+                }
             }
         }
     }

@@ -12,6 +12,7 @@ import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.food.FoodData;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -144,7 +145,9 @@ public class AFKListener {
             // Ensure player state is completely reset on login
             // This fixes issues where AFK flags persist after logout/login
             player.setNoGravity(false);
-            player.setInvulnerable(false);
+            if (!player.gameMode.isCreative()) {
+                player.setInvulnerable(false);
+            }
             player.getAbilities().invulnerable = false;
             player.onUpdateAbilities();
             player.fallDistance = 0;
@@ -254,6 +257,13 @@ public class AFKListener {
         // Auto-AFK if timeout exceeded
         int afkTime = playerAFKTime.getOrDefault(playerUUID, 0);
         if (afkTime >= Config.afkTimeout) {
+            // Validate if player can enter AFK before applying it
+            String errorMessage = AFKCommands.canEnterAFK(player);
+            if (errorMessage != null) {
+                resetAFKTimer(playerUUID);
+                return;
+            }
+
             AFKPlayer.applyAFK(player);
             LOGGER.info("{} has been automatically marked as AFK ({}s inactive).", player.getName().getString(), afkTime);
         }
@@ -412,7 +422,15 @@ public class AFKListener {
             UUID playerUUID = player.getUUID();
             boolean isPlayerAFK = AFKCommands.getPlayerAFKStatus(playerUUID);
 
-            LOGGER.info("Jumped!");
+            // Ignore jump events if player is sitting or riding something
+            if (player.isPassenger()) {
+                return;
+            }
+
+            // Ignore if player isn't in standing pose
+            if (player.getPose() != Pose.STANDING) {
+                return;
+            }
 
             if (isPlayerAFK) {
                 AFKPlayer.removeAFK(player);
@@ -429,9 +447,15 @@ public class AFKListener {
             UUID playerUUID = player.getUUID();
             boolean isPlayerAFK = AFKCommands.getPlayerAFKStatus(playerUUID);
 
-            if (isPlayerAFK && event.isMounting()) {
-                event.setCanceled(true);
-                AFKPlayer.afkDisallow(player);
+            if (isPlayerAFK) {
+                if (event.isMounting()) {
+                    event.setCanceled(true);
+                    AFKPlayer.afkDisallow(player);
+                } else {
+                    AFKPlayer.removeAFK(player);
+                    frozenDataMap.remove(playerUUID);
+                    LOGGER.info("{} removed from AFK due to dismounting", player.getName().getString());
+                }
             }
         }
     }

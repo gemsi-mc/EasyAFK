@@ -51,7 +51,9 @@ public class AFKPlayer {
     }
 
     public static void removeInvulnerability(ServerPlayer player) {
-        player.setInvulnerable(false);
+        if (!player.gameMode.isCreative()) {
+            player.setInvulnerable(false);
+        }
         player.getAbilities().invulnerable = false;
         player.onUpdateAbilities();
     }
