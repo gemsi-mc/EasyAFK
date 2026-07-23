@@ -1,7 +1,7 @@
 name: Publish
 
 # Publishes the built jars to Modrinth, CurseForge and a GitHub Release.
-# Triggered by pushing a version tag, e.g.  git tag v2.3.0 && git push origin v2.3.0
+# Triggered by pushing a version tag, e.g.  git tag 2.3.0 && git push origin 2.3.0
 #
 # Required repository configuration (Settings -> Secrets and variables -> Actions):
 #   Secrets:
@@ -14,7 +14,7 @@ name: Publish
 on:
   push:
     tags:
-      - 'v*'
+      - '[0-9]*'
 
 permissions:
   contents: write   # needed to create the GitHub Release
@@ -45,10 +45,10 @@ jobs:
 
       - name: Verify tag matches gradle.properties version
         run: |
-          TAG="${GITHUB_REF_NAME#v}"
+          TAG="$GITHUB_REF_NAME"
           PROP="${{ steps.version.outputs.version }}"
           if [ "$TAG" != "$PROP" ]; then
-            echo "::error::Tag v$TAG does not match gradle.properties version $PROP"
+            echo "::error::Tag $TAG does not match gradle.properties version $PROP"
             exit 1
           fi
 
