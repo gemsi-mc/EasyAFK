@@ -1,5 +1,9 @@
-package com.gemsi.easyafk;
+package com.gemsi.easyafk.platform;
 
+import com.gemsi.easyafk.ColorParser;
+import com.gemsi.easyafk.Config;
+import com.gemsi.easyafk.EasyAFK;
+import com.gemsi.easyafk.platform.services.IConfigService;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.config.ModConfigEvent;
@@ -8,7 +12,8 @@ import net.neoforged.neoforge.common.ModConfigSpec;
 import java.util.List;
 
 @EventBusSubscriber(modid = EasyAFK.MODID, bus = EventBusSubscriber.Bus.MOD)
-public class Config {
+public class NeoForgeConfigService implements IConfigService {
+
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
 
     // AFK Settings
@@ -141,84 +146,47 @@ public class Config {
             .comment("Prefix shown before player name in tab list when AFK")
             .define("messages.afkPrefix", "&7[AFK] ");
 
-    static final ModConfigSpec SPEC = BUILDER.build();
+    public static final ModConfigSpec SPEC = BUILDER.build();
 
-    // Static getters for easy access
-    public static int afkTimeout;
-    public static int autoKickTimeout;
-    public static double movementThreshold;
-    public static int combatCooldown;
-    public static int damageCooldown;
-    public static boolean broadcastAFKMessages;
-    public static boolean showAFKInTab;
-    public static boolean sendKickWarning;
-    public static int kickWarningTime;
-    public static boolean preventFallDamage;
-    public static boolean floatOnWater;
-    public static boolean freezeHunger;
-    public static boolean freezeHealth;
-    public static boolean freezePotionEffects;
-    public static List<? extends String> exemptPlayers;
-    public static int minPermissionLevel;
-
-    // Message strings
-    public static String msgAfkEnter;
-    public static String msgAfkExit;
-    public static String msgTitleAfk;
-    public static String msgSubtitleAfk;
-    public static String msgCannotDoWhileAfk;
-    public static String msgCannotAfkFalling;
-    public static String msgCannotAfkJumping;
-    public static String msgCannotAfkCombat;
-    public static String msgCannotAfkDamage;
-    public static String msgCannotAfkRiding;
-    public static String msgCannotAfkDangerous;
-    public static String afkPrefix;
-    public static int colorAfkPlayerName;
+    @Override
+    public void load() {
+        // No-op: values are populated by the ModConfigEvent listener below.
+    }
 
     @SubscribeEvent
     static void onLoad(final ModConfigEvent event) {
         if (event instanceof ModConfigEvent.Loading) {
-            afkTimeout = AFK_TIMEOUT.get();
-            autoKickTimeout = AUTO_KICK_TIMEOUT.get();
-            movementThreshold = MOVEMENT_THRESHOLD.get();
-            combatCooldown = COMBAT_COOLDOWN.get();
-            damageCooldown = DAMAGE_COOLDOWN.get();
-            broadcastAFKMessages = BROADCAST_AFK_MESSAGES.get();
-            showAFKInTab = SHOW_AFK_IN_TAB.get();
-            sendKickWarning = SEND_KICK_WARNING.get();
-            kickWarningTime = KICK_WARNING_TIME.get();
-            preventFallDamage = PREVENT_FALL_DAMAGE.get();
-            floatOnWater = FLOAT_ON_WATER.get();
-            freezeHunger = FREEZE_HUNGER.get();
-            freezeHealth = FREEZE_HEALTH.get();
-            freezePotionEffects = FREEZE_POTION_EFFECTS.get();
-            exemptPlayers = EXEMPT_PLAYERS.get();
-            minPermissionLevel = MIN_PERMISSION_LEVEL.get();
+            Config.afkTimeout = AFK_TIMEOUT.get();
+            Config.autoKickTimeout = AUTO_KICK_TIMEOUT.get();
+            Config.movementThreshold = MOVEMENT_THRESHOLD.get();
+            Config.combatCooldown = COMBAT_COOLDOWN.get();
+            Config.damageCooldown = DAMAGE_COOLDOWN.get();
+            Config.broadcastAFKMessages = BROADCAST_AFK_MESSAGES.get();
+            Config.showAFKInTab = SHOW_AFK_IN_TAB.get();
+            Config.sendKickWarning = SEND_KICK_WARNING.get();
+            Config.kickWarningTime = KICK_WARNING_TIME.get();
+            Config.preventFallDamage = PREVENT_FALL_DAMAGE.get();
+            Config.floatOnWater = FLOAT_ON_WATER.get();
+            Config.freezeHunger = FREEZE_HUNGER.get();
+            Config.freezeHealth = FREEZE_HEALTH.get();
+            Config.freezePotionEffects = FREEZE_POTION_EFFECTS.get();
+            Config.exemptPlayers = EXEMPT_PLAYERS.get();
+            Config.minPermissionLevel = MIN_PERMISSION_LEVEL.get();
 
-            // Load messages
-            msgAfkEnter = MSG_AFK_ENTER.get();
-            msgAfkExit = MSG_AFK_EXIT.get();
-            msgTitleAfk = MSG_TITLE_AFK.get();
-            msgSubtitleAfk = MSG_SUBTITLE_AFK.get();
-            msgCannotDoWhileAfk = MSG_CANNOT_DO_WHILE_AFK.get();
-            msgCannotAfkFalling = MSG_CANNOT_AFK_FALLING.get();
-            msgCannotAfkJumping = MSG_CANNOT_AFK_JUMPING.get();
-            msgCannotAfkCombat = MSG_CANNOT_AFK_COMBAT.get();
-            msgCannotAfkDamage = MSG_CANNOT_AFK_DAMAGE.get();
-            msgCannotAfkRiding = MSG_CANNOT_AFK_RIDING.get();
-            msgCannotAfkDangerous = MSG_CANNOT_AFK_DANGEROUS.get();
-            afkPrefix = AFK_PREFIX.get();
+            Config.msgAfkEnter = MSG_AFK_ENTER.get();
+            Config.msgAfkExit = MSG_AFK_EXIT.get();
+            Config.msgTitleAfk = MSG_TITLE_AFK.get();
+            Config.msgSubtitleAfk = MSG_SUBTITLE_AFK.get();
+            Config.msgCannotDoWhileAfk = MSG_CANNOT_DO_WHILE_AFK.get();
+            Config.msgCannotAfkFalling = MSG_CANNOT_AFK_FALLING.get();
+            Config.msgCannotAfkJumping = MSG_CANNOT_AFK_JUMPING.get();
+            Config.msgCannotAfkCombat = MSG_CANNOT_AFK_COMBAT.get();
+            Config.msgCannotAfkDamage = MSG_CANNOT_AFK_DAMAGE.get();
+            Config.msgCannotAfkRiding = MSG_CANNOT_AFK_RIDING.get();
+            Config.msgCannotAfkDangerous = MSG_CANNOT_AFK_DANGEROUS.get();
+            Config.afkPrefix = AFK_PREFIX.get();
 
-            // Only keep player name color as it's not part of the color-coded prefix string
-            colorAfkPlayerName = parseColor("#FFFFFF"); // Default white
+            Config.colorAfkPlayerName = ColorParser.parseColor("#FFFFFF");
         }
-    }
-
-    /**
-     * Parse a hex color string (#RRGGBB) to an RGB integer
-     */
-    private static int parseColor(String hexColor) {
-        return ColorParser.parseColor(hexColor);
     }
 }

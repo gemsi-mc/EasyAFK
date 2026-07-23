@@ -12,6 +12,8 @@ import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.gemsi.easyafk.platform.NeoForgeConfigService;
+
 
 @Mod(EasyAFK.MODID)
 public class EasyAFK
@@ -24,7 +26,7 @@ public class EasyAFK
     {
         modEventBus.addListener(this::commonSetup);
 
-        modContainer.registerConfig(ModConfig.Type.SERVER, Config.SPEC);
+        modContainer.registerConfig(ModConfig.Type.SERVER, NeoForgeConfigService.SPEC);
 
         NeoForge.EVENT_BUS.register(this);
         NeoForge.EVENT_BUS.register(new AFKListener());
