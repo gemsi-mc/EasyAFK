@@ -22,6 +22,9 @@ public class AFKCommands {
     // In-memory map to track AFK status
     public static final Map<UUID, Boolean> afkStatus = new HashMap<>();
 
+    // In-memory map tracking when each player entered AFK (epoch millis)
+    public static final Map<UUID, Long> afkSince = new HashMap<>();
+
     public static String canEnterAFK(ServerPlayer player) {
         UUID playerUUID = player.getUUID();
 
@@ -111,9 +114,22 @@ public class AFKCommands {
 
     public static void addPlayerAFK(UUID playerUUID) {
         afkStatus.put(playerUUID, true);
+        afkSince.put(playerUUID, System.currentTimeMillis());
     }
 
     public static void removeAFKStatus(UUID playerUUID) {
         afkStatus.remove(playerUUID);
+        afkSince.remove(playerUUID);
+    }
+
+    /**
+     * @return how many whole seconds the player has been AFK, or 0 if not AFK.
+     */
+    public static long getAFKDurationSeconds(UUID playerUUID) {
+        Long since = afkSince.get(playerUUID);
+        if (since == null) {
+            return 0;
+        }
+        return Math.max(0, (System.currentTimeMillis() - since) / 1000L);
     }
 }

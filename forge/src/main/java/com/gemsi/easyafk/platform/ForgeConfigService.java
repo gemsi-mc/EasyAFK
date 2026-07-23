@@ -47,6 +47,10 @@ public class ForgeConfigService implements IConfigService {
             .comment("Whether to show [AFK] prefix in tab list (default: true)")
             .define("showAFKInTab", true);
 
+    private static final ForgeConfigSpec.BooleanValue SHOW_AFK_DURATION_IN_TAB = BUILDER
+            .comment("Whether to show how long a player has been AFK in the tab list (default: true)")
+            .define("showAFKDurationInTab", true);
+
     private static final ForgeConfigSpec.BooleanValue SEND_KICK_WARNING = BUILDER
             .comment("Whether to warn players before kicking them for AFK (default: true)")
             .define("sendKickWarning", true);
@@ -146,6 +150,10 @@ public class ForgeConfigService implements IConfigService {
             .comment("Prefix shown before player name in tab list when AFK")
             .define("messages.afkPrefix", "&7[AFK] ");
 
+    private static final ForgeConfigSpec.ConfigValue<String> AFK_DURATION_FORMAT = BUILDER
+            .comment("Format for the AFK duration in the tab list; {time} is replaced with the elapsed time (e.g. 5m 12s)")
+            .define("messages.afkDurationFormat", "&7 ({time})");
+
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     @Override
@@ -163,6 +171,7 @@ public class ForgeConfigService implements IConfigService {
             Config.damageCooldown = DAMAGE_COOLDOWN.get();
             Config.broadcastAFKMessages = BROADCAST_AFK_MESSAGES.get();
             Config.showAFKInTab = SHOW_AFK_IN_TAB.get();
+            Config.showAFKDurationInTab = SHOW_AFK_DURATION_IN_TAB.get();
             Config.sendKickWarning = SEND_KICK_WARNING.get();
             Config.kickWarningTime = KICK_WARNING_TIME.get();
             Config.preventFallDamage = PREVENT_FALL_DAMAGE.get();
@@ -185,6 +194,7 @@ public class ForgeConfigService implements IConfigService {
             Config.msgCannotAfkRiding = MSG_CANNOT_AFK_RIDING.get();
             Config.msgCannotAfkDangerous = MSG_CANNOT_AFK_DANGEROUS.get();
             Config.afkPrefix = AFK_PREFIX.get();
+            Config.afkDurationFormat = AFK_DURATION_FORMAT.get();
 
             Config.colorAfkPlayerName = ColorParser.parseColor("#FFFFFF");
         }

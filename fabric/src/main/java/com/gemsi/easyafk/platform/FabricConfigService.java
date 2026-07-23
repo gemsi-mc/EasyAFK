@@ -50,6 +50,7 @@ public class FabricConfigService implements IConfigService {
             data.damageCooldown = Config.damageCooldown;
             data.broadcastAFKMessages = Config.broadcastAFKMessages;
             data.showAFKInTab = Config.showAFKInTab;
+            data.showAFKDurationInTab = Config.showAFKDurationInTab;
             data.sendKickWarning = Config.sendKickWarning;
             data.kickWarningTime = Config.kickWarningTime;
             data.preventFallDamage = Config.preventFallDamage;
@@ -71,6 +72,7 @@ public class FabricConfigService implements IConfigService {
             data.msgCannotAfkRiding = Config.msgCannotAfkRiding;
             data.msgCannotAfkDangerous = Config.msgCannotAfkDangerous;
             data.afkPrefix = Config.afkPrefix;
+            data.afkDurationFormat = Config.afkDurationFormat;
 
             GSON.toJson(data, writer);
         } catch (IOException e) {
@@ -86,6 +88,7 @@ public class FabricConfigService implements IConfigService {
         Config.damageCooldown = data.damageCooldown;
         Config.broadcastAFKMessages = data.broadcastAFKMessages;
         Config.showAFKInTab = data.showAFKInTab;
+        Config.showAFKDurationInTab = data.showAFKDurationInTab;
         Config.sendKickWarning = data.sendKickWarning;
         Config.kickWarningTime = data.kickWarningTime;
         Config.preventFallDamage = data.preventFallDamage;
@@ -107,6 +110,7 @@ public class FabricConfigService implements IConfigService {
         Config.msgCannotAfkRiding = keepOnNull(data.msgCannotAfkRiding, Config.msgCannotAfkRiding);
         Config.msgCannotAfkDangerous = keepOnNull(data.msgCannotAfkDangerous, Config.msgCannotAfkDangerous);
         Config.afkPrefix = keepOnNull(data.afkPrefix, Config.afkPrefix);
+        Config.afkDurationFormat = keepOnNull(data.afkDurationFormat, Config.afkDurationFormat);
         Config.colorAfkPlayerName = ColorParser.parseColor("#FFFFFF");
     }
 
@@ -122,6 +126,7 @@ public class FabricConfigService implements IConfigService {
         int damageCooldown = 15000;
         boolean broadcastAFKMessages = true;
         boolean showAFKInTab = true;
+        boolean showAFKDurationInTab = true;
         boolean sendKickWarning = true;
         int kickWarningTime = 60;
         boolean preventFallDamage = true;
@@ -143,5 +148,6 @@ public class FabricConfigService implements IConfigService {
         String msgCannotAfkRiding = "&cYou cannot go AFK while riding an entity!";
         String msgCannotAfkDangerous = "&cYou cannot go AFK in a dangerous location!";
         String afkPrefix = "&7[AFK] ";
+        String afkDurationFormat = "&7 ({time})";
     }
 }

@@ -2,7 +2,10 @@ package com.gemsi.easyafk;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.network.protocol.game.ClientboundClearTitlesPacket;
+import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
@@ -177,8 +180,8 @@ public class AFKPlayer {
         AFKListener.removeDamageCooldown(playerUUID);
         AFKListener.freezePlayerState(player);
 
-        // Fabric doesn't have refreshDisplayName/refreshTabListName
-        // The tab list updates automatically when player data changes
+        // Push the AFK-decorated tab list name (prefix + duration) to all clients
+        updateTabListName(player);
 
         // Display AFK title on player's screen
         displayAFKTitle(player);
@@ -212,8 +215,8 @@ public class AFKPlayer {
         AFKListener.clearKickWarning(playerUUID);
         playerLastPositions.remove(playerUUID);
 
-        // Fabric doesn't have refreshDisplayName/refreshTabListName
-        // The tab list updates automatically when player data changes
+        // Restore the plain tab list name now that the player is no longer AFK
+        updateTabListName(player);
 
         // Clear AFK title from player's screen
         clearAFKTitle(player);
@@ -232,5 +235,39 @@ public class AFKPlayer {
     public static void afkDisallow(ServerPlayer player) {
         Component coloredMessage = ColorParser.parseColors(Config.msgCannotDoWhileAfk);
         player.sendSystemMessage(coloredMessage);
+    }
+
+    /**
+     * Builds the tab list display name for an AFK player, e.g. "[AFK] Steve (5m 12s)".
+     * Used by {@code MixinServerPlayer} to override the vanilla tab list name on Fabric.
+     */
+    public static Component buildTabListName(ServerPlayer player) {
+        Component afkPrefix = ColorParser.parseColors(Config.afkPrefix);
+
+        Component playerNameComponent = Component.literal(player.getName().getString())
+                .setStyle(Style.EMPTY.withBold(false).withColor(TextColor.fromRgb(Config.colorAfkPlayerName)));
+
+        Component tablistName = afkPrefix.copy().append(playerNameComponent);
+
+        if (Config.showAFKDurationInTab) {
+            long seconds = AFKCommands.getAFKDurationSeconds(player.getUUID());
+            String durationText = Config.afkDurationFormat.replace("{time}", AFKDuration.format(seconds));
+            tablistName = tablistName.copy().append(ColorParser.parseColors(durationText));
+        }
+
+        return tablistName;
+    }
+
+    /**
+     * Broadcasts an updated tab list display name for the given player to all clients.
+     * Fabric has no {@code refreshTabListName()} helper, so we send the packet manually.
+     */
+    public static void updateTabListName(ServerPlayer player) {
+        if (player.getServer() == null) {
+            return;
+        }
+        player.getServer().getPlayerList().broadcastAll(
+                new ClientboundPlayerInfoUpdatePacket(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME, player)
+        );
     }
 }

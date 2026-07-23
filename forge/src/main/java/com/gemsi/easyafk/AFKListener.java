@@ -200,6 +200,11 @@ public class AFKListener {
                     int currentAFKTime = playerAFKTime.getOrDefault(playerUUID, 0) + 1;
                     playerAFKTime.put(playerUUID, currentAFKTime);
                     lastCheckTime.put(serverPlayer, currentTime);
+
+                    // Refresh the tab list once per second so the AFK duration stays current
+                    if (Config.showAFKInTab && Config.showAFKDurationInTab) {
+                        serverPlayer.refreshTabListName();
+                    }
                 }
 
                 // Check for auto-kick
@@ -478,6 +483,14 @@ public class AFKListener {
                     .setStyle(Style.EMPTY.withBold(false).withColor(TextColor.fromRgb(Config.colorAfkPlayerName)));
 
             Component tablistName = afkPrefix.copy().append(playerNameComponent);
+
+            // Append the live AFK duration, e.g. "[AFK] Steve (5m 12s)"
+            if (Config.showAFKDurationInTab) {
+                long seconds = AFKCommands.getAFKDurationSeconds(player.getUUID());
+                String durationText = Config.afkDurationFormat.replace("{time}", AFKDuration.format(seconds));
+                tablistName = tablistName.copy().append(ColorParser.parseColors(durationText));
+            }
+
             event.setDisplayName(tablistName);
         }
     }

@@ -19,6 +19,7 @@ public class Config {
     // Message Settings
     public static boolean broadcastAFKMessages = true;
     public static boolean showAFKInTab = true;
+    public static boolean showAFKDurationInTab = true;
     public static boolean sendKickWarning = true;
     public static int kickWarningTime = 60;
 
@@ -46,6 +47,7 @@ public class Config {
     public static String msgCannotAfkRiding = "&cYou cannot go AFK while riding an entity!";
     public static String msgCannotAfkDangerous = "&cYou cannot go AFK in a dangerous location!";
     public static String afkPrefix = "&7[AFK] ";
+    public static String afkDurationFormat = "&7 ({time})";
     public static int colorAfkPlayerName = 0xFFFFFF;
 
     public static void load() {
