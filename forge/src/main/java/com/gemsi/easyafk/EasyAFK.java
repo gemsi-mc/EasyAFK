@@ -12,6 +12,8 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.gemsi.easyafk.platform.ForgeConfigService;
+
 @Mod(EasyAFK.MODID)
 public class EasyAFK
 {
@@ -26,7 +28,7 @@ public class EasyAFK
         modEventBus.addListener(this::commonSetup);
 
         ModList.get().getModContainerById(MODID).ifPresent(container -> {
-            container.addConfig(new ModConfig(ModConfig.Type.SERVER, Config.SPEC, container));
+            container.addConfig(new ModConfig(ModConfig.Type.SERVER, ForgeConfigService.SPEC, container));
         });
 
         MinecraftForge.EVENT_BUS.register(this);
