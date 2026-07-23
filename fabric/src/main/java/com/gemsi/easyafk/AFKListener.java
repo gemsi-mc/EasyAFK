@@ -233,6 +233,11 @@ public class AFKListener {
                         int currentAFKTime = playerAFKTime.getOrDefault(playerUUID, 0) + 1;
                         playerAFKTime.put(playerUUID, currentAFKTime);
                         lastCheckTime.put(serverPlayer, currentTime);
+
+                        // Refresh the tab list once per second so the AFK duration stays current
+                        if (Config.showAFKInTab && Config.showAFKDurationInTab) {
+                            AFKPlayer.updateTabListName(serverPlayer);
+                        }
                     }
 
                     // Check for auto-kick

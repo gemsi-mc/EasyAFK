@@ -4,7 +4,9 @@
   "package": "com.gemsi.easyafk.mixin",
   "refmap": "${mod_id}.refmap.json",
   "compatibilityLevel": "JAVA_21",
-  "mixins": [],
+  "mixins": [
+    "MixinServerPlayer"
+  ],
   "client": [
     "MixinTitleScreen"
   ],

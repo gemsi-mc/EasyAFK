@@ -6,7 +6,7 @@ The mod handles everything from **AFK detection**, **tab-list indicators**, **ti
 
 ## ✨ **Key Features include:**
 
-**Tablist Prefixes**
+**Tablist Prefixes** _(with optional live AFK duration, e.g. `[AFK] Steve (5m 12s)`)_
 
 ![Tablist Prefix](https://cdn.modrinth.com/data/cached_images/df40359b47bccad875c25b13f8c2ac1bc9fc95b4.png)
 
