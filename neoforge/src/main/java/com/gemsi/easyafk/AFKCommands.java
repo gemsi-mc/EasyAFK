@@ -25,11 +25,7 @@ public class AFKCommands {
 
     private static final Logger LOGGER = LogManager.getLogger("EasyAFK");
 
-    // In-memory map to track AFK status
-    public static final Map<UUID, Boolean> afkStatus = new HashMap<>();
 
-    // In-memory map tracking when each player entered AFK (epoch millis)
-    public static final Map<UUID, Long> afkSince = new HashMap<>();
 
     public AFKCommands() {
         NeoForge.EVENT_BUS.addListener(this::init);
@@ -80,11 +76,7 @@ public class AFKCommands {
 
         // Check combat cooldown
         if (AFKPlayer.isInCombat(playerUUID)) {
-            long currentTime = System.currentTimeMillis();
-            long combatCooldown = AFKListener.combatCooldown.getOrDefault(playerUUID, 0L);
-            if (currentTime - combatCooldown < Config.combatCooldown) {
-                return Config.msgCannotAfkCombat;
-            }
+            return Config.msgCannotAfkCombat;
         }
 
         // Check recent damage
@@ -118,27 +110,21 @@ public class AFKCommands {
     }
 
     public static boolean getPlayerAFKStatus(UUID playerUUID) {
-        return afkStatus.containsKey(playerUUID);
+        return AFKState.TRACKER.isAFK(playerUUID);
     }
 
     public static void addPlayerAFK(UUID playerUUID) {
-        afkStatus.put(playerUUID, true);
-        afkSince.put(playerUUID, System.currentTimeMillis());
+        AFKState.TRACKER.markAFK(playerUUID);
     }
 
     public static void removeAFKStatus(UUID playerUUID) {
-        afkStatus.remove(playerUUID);
-        afkSince.remove(playerUUID);
+        AFKState.TRACKER.clearAFK(playerUUID);
     }
 
     /**
      * @return how many whole seconds the player has been AFK, or 0 if not AFK.
      */
     public static long getAFKDurationSeconds(UUID playerUUID) {
-        Long since = afkSince.get(playerUUID);
-        if (since == null) {
-            return 0;
-        }
-        return Math.max(0, (System.currentTimeMillis() - since) / 1000L);
+        return AFKState.TRACKER.afkDurationSeconds(playerUUID);
     }
 }

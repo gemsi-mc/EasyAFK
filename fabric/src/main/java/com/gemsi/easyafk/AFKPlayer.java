@@ -29,12 +29,7 @@ public class AFKPlayer {
     private static final Map<UUID, double[]> playerLastPositions = new HashMap<>();
 
     public static boolean isInCombat(UUID playerUUID) {
-        if (AFKListener.combatCooldown.containsKey(playerUUID)) {
-            long lastDamageTime = AFKListener.combatCooldown.get(playerUUID);
-            long currentTime = System.currentTimeMillis();
-            return currentTime - lastDamageTime <= Config.combatCooldown;
-        }
-        return false;
+        return AFKState.TRACKER.inCombat(playerUUID, Config.combatCooldown);
     }
 
     public static boolean isExemptFromAutoAFK(ServerPlayer player) {
@@ -52,6 +47,11 @@ public class AFKPlayer {
     }
 
     public static void applyInvulnerability(ServerPlayer player) {
+        // Entity-level invulnerability short-circuits the damage events, so it has to
+        // respect the same switch AFKDamagePolicy does or the config would do nothing.
+        if (!Config.invulnerableWhileAFK) {
+            return;
+        }
         player.setInvulnerable(true);
         player.getAbilities().invulnerable = true;
         player.onUpdateAbilities();
@@ -212,7 +212,6 @@ public class AFKPlayer {
         AFKCommands.removeAFKStatus(playerUUID);
         AFKListener.unfreezePlayer(playerUUID);
         AFKListener.frozenDataMap.remove(playerUUID);
-        AFKListener.clearKickWarning(playerUUID);
         playerLastPositions.remove(playerUUID);
 
         // Restore the plain tab list name now that the player is no longer AFK
