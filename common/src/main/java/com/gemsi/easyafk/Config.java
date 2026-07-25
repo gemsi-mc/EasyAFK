@@ -24,6 +24,7 @@ public class Config {
     public static int kickWarningTime = 60;
 
     // Protection Settings
+    public static boolean invulnerableWhileAFK = true;
     public static boolean preventFallDamage = true;
     public static boolean floatOnWater = true;
     public static boolean freezeHunger = true;
@@ -46,6 +47,8 @@ public class Config {
     public static String msgCannotAfkDamage = "&cYou can't go AFK! Stay alert, danger is everywhere!";
     public static String msgCannotAfkRiding = "&cYou cannot go AFK while riding an entity!";
     public static String msgCannotAfkDangerous = "&cYou cannot go AFK in a dangerous location!";
+    public static String msgKickWarning = "&eYou will be kicked for being AFK in {seconds} seconds!";
+    public static String msgKicked = "&cYou have been kicked for being AFK too long.";
     public static String afkPrefix = "&7[AFK] ";
     public static String afkDurationFormat = "&7 ({time})";
     public static int colorAfkPlayerName = 0xFFFFFF;

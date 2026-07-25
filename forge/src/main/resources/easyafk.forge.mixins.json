@@ -4,9 +4,7 @@
   "package": "com.gemsi.easyafk.mixin",
   "compatibilityLevel": "JAVA_18",
   "mixins": [],
-  "client": [
-    "MixinTitleScreen"
-  ],
+  "client": [],
   "server": [],
   "injectors": {
     "defaultRequire": 1

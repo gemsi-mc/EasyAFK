@@ -265,11 +265,6 @@ public class ColorParser {
      * Parse a simple hex color string to RGB integer (for backward compatibility)
      */
     public static int parseColor(String hexColor) {
-        try {
-            String hex = hexColor.startsWith("#") ? hexColor.substring(1) : hexColor;
-            return Integer.parseInt(hex, 16);
-        } catch (NumberFormatException e) {
-            return 0xFFFFFF; // Default to white
-        }
+        return HexColor.parse(hexColor);
     }
 }

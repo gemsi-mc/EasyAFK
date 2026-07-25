@@ -34,13 +34,8 @@ public class AFKListener {
 
     private static final Logger LOGGER = LogManager.getLogger("EasyAFK");
 
-    private static final Map<UUID, Integer> playerAFKTime = new HashMap<>();
     private static final Map<UUID, double[]> frozenPlayers = new HashMap<>();
     static final Map<UUID, PlayerData> frozenDataMap = new HashMap<>();
-    public static final Map<UUID, Long> combatCooldown = new HashMap<>();
-    public static final Map<UUID, Long> damageTimestamps = new HashMap<>();
-    private static final Map<ServerPlayer, Long> lastCheckTime = new HashMap<>();
-    private static final Map<UUID, Boolean> kickWarningShown = new HashMap<>();
     private static final Map<UUID, java.util.concurrent.atomic.AtomicBoolean> recentlyShowedMessage = new java.util.concurrent.ConcurrentHashMap<>();
     private static final Map<UUID, Boolean> wasPassengerWhenAfk = new HashMap<>();
 
@@ -49,12 +44,7 @@ public class AFKListener {
     private static final Map<UUID, double[]> lastPositions = new HashMap<>();
 
     public static boolean isRecentDamage(UUID playerUUID) {
-        if (damageTimestamps.containsKey(playerUUID)) {
-            long lastDamageTime = damageTimestamps.get(playerUUID);
-            long currentTime = System.currentTimeMillis();
-            return currentTime - lastDamageTime <= Config.damageCooldown;
-        }
-        return false;
+        return AFKState.TRACKER.recentlyDamaged(playerUUID, Config.damageCooldown);
     }
 
     public static void freezePlayerPosition(UUID playerUUID, double x, double y, double z) {
@@ -67,15 +57,11 @@ public class AFKListener {
     }
 
     public static void removeCombatCooldown(UUID playerUUID) {
-        combatCooldown.remove(playerUUID);
+        AFKState.TRACKER.clearCooldowns(playerUUID);
     }
 
     public static void removeDamageCooldown(UUID playerUUID) {
-        damageTimestamps.remove(playerUUID);
-    }
-
-    public static void clearKickWarning(UUID playerUUID) {
-        kickWarningShown.remove(playerUUID);
+        AFKState.TRACKER.clearCooldowns(playerUUID);
     }
 
     private static class PlayerData {
@@ -130,8 +116,7 @@ public class AFKListener {
             }
 
             // Clean up all data
-            lastCheckTime.remove(player);
-            kickWarningShown.remove(playerUUID);
+            AFKState.TRACKER.forget(playerUUID);
             lastPositions.remove(playerUUID);
             wasPassengerWhenAfk.remove(playerUUID);
             frozenPlayers.remove(playerUUID);
@@ -170,6 +155,7 @@ public class AFKListener {
 
         // Player tick
         ServerTickEvents.END_SERVER_TICK.register(server -> {
+            boolean secondBoundary = server.getTickCount() % 20 == 0;
             for (ServerPlayer serverPlayer : server.getPlayerList().getPlayers()) {
                 UUID playerUUID = serverPlayer.getUUID();
                 boolean playerAfkStatus = AFKCommands.getPlayerAFKStatus(playerUUID);
@@ -225,19 +211,9 @@ public class AFKListener {
                     }
                     maintainFrozenState(serverPlayer);
 
-                    // Continue incrementing AFK timer for kick check
-                    long currentTime = System.currentTimeMillis();
-                    long lastTime = lastCheckTime.getOrDefault(serverPlayer, 0L);
-
-                    if (currentTime - lastTime >= 1000) {
-                        int currentAFKTime = playerAFKTime.getOrDefault(playerUUID, 0) + 1;
-                        playerAFKTime.put(playerUUID, currentAFKTime);
-                        lastCheckTime.put(serverPlayer, currentTime);
-
-                        // Refresh the tab list once per second so the AFK duration stays current
-                        if (Config.showAFKInTab && Config.showAFKDurationInTab) {
-                            AFKPlayer.updateTabListName(serverPlayer);
-                        }
+                    // Refresh the tab list once per second so the AFK duration stays current
+                    if (secondBoundary && Config.showAFKInTab && Config.showAFKDurationInTab) {
+                        AFKPlayer.updateTabListName(serverPlayer);
                     }
 
                     // Check for auto-kick
@@ -311,16 +287,8 @@ public class AFKListener {
         // Damage events
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
             if (entity instanceof ServerPlayer player) {
-                UUID playerUUID = player.getUUID();
-                boolean playerAfkStatus = AFKCommands.getPlayerAFKStatus(playerUUID);
-
-                if (playerAfkStatus) {
-                    // Prevent all damage to AFK players
-                    if (source.is(FALL) && Config.preventFallDamage) {
-                        return false;
-                    }
-                    return false;
-                }
+                boolean playerAfkStatus = AFKCommands.getPlayerAFKStatus(player.getUUID());
+                return !AFKDamagePolicy.fromConfig().shouldCancel(playerAfkStatus, source.is(FALL));
             }
             return true;
         });
@@ -331,7 +299,6 @@ public class AFKListener {
                     UUID playerUUID = player.getUUID();
                     resetAFKTimer(playerUUID);
 
-                    long currentTime = System.currentTimeMillis();
                     ResourceKey<DamageType> damageTypeKey = source.typeHolder().unwrapKey().orElse(null);
 
                     if (damageTypeKey != null) {
@@ -342,12 +309,12 @@ public class AFKListener {
                                 Entity attackerPlayer = source.getEntity();
                                 if (attackerPlayer != null) {
                                     UUID attackerUUID = attackerPlayer.getUUID();
-                                    combatCooldown.put(attackerUUID, currentTime);
+                                    AFKState.TRACKER.recordCombat(attackerUUID);
                                 }
                             }
-                            combatCooldown.put(playerUUID, currentTime);
+                            AFKState.TRACKER.recordCombat(playerUUID);
                         } else {
-                            damageTimestamps.put(playerUUID, currentTime);
+                            AFKState.TRACKER.recordDamage(playerUUID);
                         }
                     }
                 }
@@ -373,21 +340,11 @@ public class AFKListener {
     }
 
     static void resetAFKTimer(UUID playerUUID) {
-        playerAFKTime.put(playerUUID, 0);
+        AFKState.TRACKER.recordActivity(playerUUID);
     }
 
     private static void checkAFKTime(ServerPlayer player) {
         UUID playerUUID = player.getUUID();
-
-        // Calculate time-based AFK check
-        long currentTime = System.currentTimeMillis();
-        long lastTime = lastCheckTime.getOrDefault(player, 0L);
-
-        if (currentTime - lastTime >= 1000) {
-            int currentAFKTime = playerAFKTime.getOrDefault(playerUUID, 0) + 1;
-            playerAFKTime.put(playerUUID, currentAFKTime);
-            lastCheckTime.put(player, currentTime);
-        }
 
         // Calculate distance-based movement check
         double currentX = player.getX();
@@ -414,7 +371,7 @@ public class AFKListener {
         }
 
         // Auto-AFK if timeout exceeded
-        int afkTime = playerAFKTime.getOrDefault(playerUUID, 0);
+        long afkTime = AFKState.TRACKER.idleSeconds(playerUUID);
         if (afkTime >= Config.afkTimeout) {
             // Validate if player can enter AFK before applying it
             String errorMessage = AFKCommands.canEnterAFK(player);
@@ -430,26 +387,23 @@ public class AFKListener {
 
     private static void checkAutoKick(ServerPlayer player) {
         UUID playerUUID = player.getUUID();
-        int afkTime = playerAFKTime.getOrDefault(playerUUID, 0);
+        long afkTime = AFKState.TRACKER.idleSeconds(playerUUID);
 
         // Check if warning should be sent
         if (Config.sendKickWarning) {
-            int timeUntilKick = Config.autoKickTimeout - afkTime;
-            if (timeUntilKick <= Config.kickWarningTime && timeUntilKick > 0) {
-                boolean hasShownWarning = kickWarningShown.getOrDefault(playerUUID, false);
-                if (!hasShownWarning) {
-                    String warningMessage = "&eYou will be kicked for being AFK in " + timeUntilKick + " seconds!";
-                    Component coloredWarning = ColorParser.parseColors(warningMessage);
-                    player.sendSystemMessage(coloredWarning);
-                    kickWarningShown.put(playerUUID, true);
-                    LOGGER.info("Sent AFK kick warning to {} ({}s until kick)", player.getName().getString(), timeUntilKick);
-                }
+            long timeUntilKick = Config.autoKickTimeout - afkTime;
+            if (timeUntilKick <= Config.kickWarningTime && timeUntilKick > 0
+                    && AFKState.TRACKER.markKickWarningShown(playerUUID)) {
+                String warningMessage = Config.msgKickWarning.replace("{seconds}", String.valueOf(timeUntilKick));
+                Component coloredWarning = ColorParser.parseColors(warningMessage);
+                player.sendSystemMessage(coloredWarning);
+                LOGGER.info("Sent AFK kick warning to {} ({}s until kick)", player.getName().getString(), timeUntilKick);
             }
         }
 
         // Kick if timeout exceeded
         if (afkTime >= Config.autoKickTimeout) {
-            String kickMessage = "&cYou have been kicked for being AFK too long.";
+            String kickMessage = Config.msgKicked;
             Component coloredKickMessage = ColorParser.parseColors(kickMessage);
             player.connection.disconnect(coloredKickMessage);
             LOGGER.info("Kicked {} for being AFK too long ({}s)", player.getName().getString(), afkTime);
