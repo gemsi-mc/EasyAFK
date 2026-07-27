@@ -3,6 +3,10 @@ name: Publish
 # Publishes the built jars to Modrinth, CurseForge and a GitHub Release.
 # Triggered by pushing a version tag, e.g.  git tag 2.3.0 && git push origin 2.3.0
 #
+# The release notes come from CHANGELOG.md: the section headed "## [<version>]" is
+# extracted and used verbatim on all three platforms. Write that section before
+# tagging, or the run fails at the "Extract changelog" step below.
+#
 # Required repository configuration (Settings -> Secrets and variables -> Actions):
 #   Secrets:
 #     MODRINTH_TOKEN        - Modrinth PAT with "Create versions" scope
@@ -52,6 +56,24 @@ jobs:
             exit 1
           fi
 
+      # Runs before the build so a missing changelog fails in seconds, not minutes.
+      - name: Extract changelog
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # Everything between this version's heading and the next heading or link
+          # footer, with surrounding blank lines trimmed.
+          awk -v hdr="## [$VERSION]" '
+            index($0, hdr) == 1 { found = 1; next }
+            found && (/^## / || /^\[[^]]+\]: /) { exit }
+            found { print }
+          ' CHANGELOG.md | sed -e '/./,$!d' | tac | sed -e '/./,$!d' | tac > CHANGELOG_CURRENT.md
+          if [ ! -s CHANGELOG_CURRENT.md ]; then
+            echo "::error::CHANGELOG.md has no '## [$VERSION]' section (or the section is empty)"
+            exit 1
+          fi
+          echo "Release notes for $VERSION:"
+          cat CHANGELOG_CURRENT.md
+
       - name: Build
         run: ./gradlew build --no-daemon
 
@@ -64,6 +86,7 @@ jobs:
           curseforge-id: ${{ vars.CURSEFORGE_PROJECT_ID }}
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
           files: fabric/build/libs/!(*-@(dev|sources|javadoc)).jar
+          changelog-file: CHANGELOG_CURRENT.md
           name: EasyAFK ${{ steps.version.outputs.version }} (Fabric/Quilt)
           version: ${{ steps.version.outputs.version }}
           version-type: release
@@ -85,6 +108,7 @@ jobs:
           curseforge-id: ${{ vars.CURSEFORGE_PROJECT_ID }}
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
           files: neoforge/build/libs/!(*-@(dev|sources|javadoc)).jar
+          changelog-file: CHANGELOG_CURRENT.md
           name: EasyAFK ${{ steps.version.outputs.version }} (NeoForge)
           version: ${{ steps.version.outputs.version }}
           version-type: release
@@ -102,6 +126,7 @@ jobs:
           curseforge-id: ${{ vars.CURSEFORGE_PROJECT_ID }}
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
           files: forge/build/libs/!(*-@(dev|sources|javadoc)).jar
+          changelog-file: CHANGELOG_CURRENT.md
           name: EasyAFK ${{ steps.version.outputs.version }} (Forge)
           version: ${{ steps.version.outputs.version }}
           version-type: release
@@ -116,6 +141,8 @@ jobs:
         with:
           name: EasyAFK ${{ steps.version.outputs.version }}
           tag_name: ${{ github.ref_name }}
+          # GitHub appends the auto-generated PR list beneath the changelog body.
+          body_path: CHANGELOG_CURRENT.md
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: |
