@@ -8,6 +8,7 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -39,11 +40,17 @@ public class EasyAFK
     {}
 
     @SubscribeEvent
+    public void onRegisterCommands(RegisterCommandsEvent event)
+    {
+        AFKCommands.register(event.getDispatcher());
+    }
+
+    @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event)
     {
         LOGGER.info("Start up complete.");
         String version = ModList.get()
-                .getModContainerById("easyafk")
+                .getModContainerById(MODID)
                 .map(container -> container.getModInfo().getVersion().toString())
                 .orElse("UNKNOWN");
         VersionChecker.checkForUpdates(version);

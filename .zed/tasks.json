@@ -1,0 +1,86 @@
+[
+  {
+    "label": "MC Server (NeoForge)",
+    "command": "./gradlew",
+    "args": [
+      ":neoforge:runServer"
+    ],
+    "env": {
+      "JAVA_HOME": "/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home"
+    },
+    "cwd": "/Users/sambailey/Development/minecraft/EasyAFK",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "MC Client (NeoForge)",
+    "command": "./gradlew",
+    "args": [
+      ":neoforge:runClient"
+    ],
+    "env": {
+      "JAVA_HOME": "/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home"
+    },
+    "cwd": "/Users/sambailey/Development/minecraft/EasyAFK",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "MC Server (Fabric)",
+    "command": "./gradlew",
+    "args": [
+      ":fabric:runServer"
+    ],
+    "env": {
+      "JAVA_HOME": "/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home"
+    },
+    "cwd": "/Users/sambailey/Development/minecraft/EasyAFK",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "MC Client (Fabric)",
+    "command": "./gradlew",
+    "args": [
+      ":fabric:runClient"
+    ],
+    "env": {
+      "JAVA_HOME": "/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home"
+    },
+    "cwd": "/Users/sambailey/Development/minecraft/EasyAFK",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "Build jars",
+    "command": "./gradlew",
+    "args": [
+      "build"
+    ],
+    "env": {
+      "JAVA_HOME": "/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home"
+    },
+    "cwd": "/Users/sambailey/Development/minecraft/EasyAFK",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "Clean",
+    "command": "./gradlew",
+    "args": [
+      "clean"
+    ],
+    "env": {
+      "JAVA_HOME": "/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home"
+    },
+    "cwd": "/Users/sambailey/Development/minecraft/EasyAFK",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  }
+]

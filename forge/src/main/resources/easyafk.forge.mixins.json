@@ -2,8 +2,10 @@
   "required": true,
   "minVersion": "0.8",
   "package": "com.gemsi.easyafk.mixin",
-  "compatibilityLevel": "JAVA_18",
-  "mixins": [],
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "MixinServerPlayer"
+  ],
   "client": [],
   "server": [],
   "injectors": {

@@ -134,6 +134,16 @@ public final class ConfigSchema {
         entries.add(doubleEntry("movementThreshold", "movementThreshold", 0.1, 0.01, 5.0,
                 "Minimum movement distance to reset AFK timer (default: 0.1)",
                 () -> Config.movementThreshold, v -> Config.movementThreshold = v));
+        entries.add(boolEntry("exitAFKOnJump", "exitAFKOnJump", true,
+                "Whether upward movement takes a player out of AFK (default: true). Turn this off if "
+                        + "items or mods push players upwards and knock them out of AFK on their own.",
+                () -> Config.exitAFKOnJump, v -> Config.exitAFKOnJump = v));
+
+        // Networking
+        entries.add(boolEntry("checkForUpdates", "checkForUpdates", true,
+                "Whether to ask GitHub for the latest EasyAFK version on server start (default: true). "
+                        + "Turn this off to stop the mod making any outbound network request.",
+                () -> Config.checkForUpdates, v -> Config.checkForUpdates = v));
 
         // Combat Settings
         entries.add(intEntry("combatCooldown", "combatCooldown", 15000, 1000, 60000,

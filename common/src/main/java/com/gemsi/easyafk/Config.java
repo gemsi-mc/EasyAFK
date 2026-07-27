@@ -11,6 +11,10 @@ public class Config {
     public static int afkTimeout = 300;
     public static int autoKickTimeout = 1800;
     public static double movementThreshold = 0.1;
+    public static boolean exitAFKOnJump = true;
+
+    // Networking
+    public static boolean checkForUpdates = true;
 
     // Combat Settings
     public static int combatCooldown = 15000;
@@ -55,5 +59,16 @@ public class Config {
 
     public static void load() {
         Services.CONFIG.load();
+        reloaded();
+    }
+
+    /**
+     * Must be called by anything that writes new values onto these fields. Forge and
+     * NeoForge populate them from a config event rather than through {@link #load()}, so
+     * this is the one hook both routes share.
+     */
+    public static void reloaded() {
+        // Message strings may have changed, so nothing parsed from the old ones is valid.
+        ColorParser.invalidateCache();
     }
 }

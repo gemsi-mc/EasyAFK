@@ -4,3 +4,17 @@ plugins {
     // see https://projects.neoforged.net/neoforged/moddevgradle for new versions
     id 'net.neoforged.moddev' version '2.0.49-beta' apply false
 }
+
+// Minecraft 1.21+ depends on macOS-patched LWJGL natives (e.g.
+// lwjgl-freetype:natives-macos-patch) that Mojang never published to Maven Central.
+// ForgeGradle resolves those while configuring :forge, before that project's own
+// repositories block is in effect, so this has to be declared at root scope.
+allprojects {
+    repositories {
+        maven {
+            name = 'MojangLibraries'
+            url = 'https://libraries.minecraft.net/'
+            content { includeGroupAndSubgroups('org.lwjgl') }
+        }
+    }
+}

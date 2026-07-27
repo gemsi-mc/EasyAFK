@@ -13,22 +13,17 @@ public class EasyAFK implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        // Load configuration
         Config.load();
 
-        // Register commands
-        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-            AFKCommands.register(dispatcher);
-        });
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
+                AFKCommands.register(dispatcher));
 
-        // Register event listeners
         AFKListener.register();
 
-        // Server lifecycle events
         ServerLifecycleEvents.SERVER_STARTING.register(server -> {
             LOGGER.info("Start up complete.");
             String version = FabricLoader.getInstance()
-                    .getModContainer("easyafk")
+                    .getModContainer(MODID)
                     .map(container -> container.getMetadata().getVersion().getFriendlyString())
                     .orElse("UNKNOWN");
 

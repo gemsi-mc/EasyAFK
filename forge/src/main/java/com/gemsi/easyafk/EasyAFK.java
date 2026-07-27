@@ -1,6 +1,7 @@
 package com.gemsi.easyafk;
 
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -41,11 +42,17 @@ public class EasyAFK
     {}
 
     @SubscribeEvent
+    public void onRegisterCommands(RegisterCommandsEvent event)
+    {
+        AFKCommands.register(event.getDispatcher());
+    }
+
+    @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event)
     {
         LOGGER.info("Start up complete.");
         String version = ModList.get()
-                .getModContainerById("easyafk")
+                .getModContainerById(MODID)
                 .map(container -> container.getModInfo().getVersion().toString())
                 .orElse("UNKNOWN");
         VersionChecker.checkForUpdates(version);

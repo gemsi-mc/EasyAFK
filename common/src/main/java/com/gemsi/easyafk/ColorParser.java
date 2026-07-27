@@ -6,259 +6,99 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Turns EasyAFK's colour markup into text components.
+ *
+ * <p>All of the markup rules live in {@link ColorSpan}; this class only maps the spans it
+ * produces onto {@link Style}. Results are cached because the same handful of config
+ * strings is parsed over and over - the tab list prefix alone is rebuilt for every AFK
+ * player every second - and a gradient or rainbow is not cheap to expand.
+ *
+ * <p>Cached components are shared, so callers must treat the return value of
+ * {@link #parseColors(String)} as immutable and {@link Component#copy() copy} it before
+ * appending to it.
+ */
 public class ColorParser {
 
-    private static final Pattern GRADIENT_PATTERN = Pattern.compile("<gradient:#([0-9A-Fa-f]{6}):#([0-9A-Fa-f]{6})>(.*?)</gradient>");
-    private static final Pattern RAINBOW_PATTERN = Pattern.compile("<rainbow>(.*?)</rainbow>");
+    /**
+     * Config strings are few, but messages carry substituted player names and kick
+     * countdowns, so the cache is bounded rather than unbounded.
+     */
+    private static final int CACHE_LIMIT = 256;
+
+    private static final Map<String, Component> CACHE = new ConcurrentHashMap<>();
 
     /**
-     * Parse a string with Minecraft color codes and gradient tags into a Component
+     * Parse a string with Minecraft colour codes, hex colours and gradient tags into a
+     * Component. The result is shared and must not be mutated in place.
      */
     public static Component parseColors(String text) {
         if (text == null || text.isEmpty()) {
             return Component.empty();
         }
-
-        text = handleGradients(text);
-
-        text = handleRainbow(text);
-
-        return parseMinecraftColors(text);
-    }
-
-    private static String handleGradients(String text) {
-        Matcher matcher = GRADIENT_PATTERN.matcher(text);
-        StringBuffer result = new StringBuffer();
-
-        while (matcher.find()) {
-            String startColorHex = matcher.group(1);
-            String endColorHex = matcher.group(2);
-            String content = matcher.group(3);
-
-            String gradientText = createGradientColorCodes(content, startColorHex, endColorHex);
-            matcher.appendReplacement(result, Matcher.quoteReplacement(gradientText));
-        }
-        matcher.appendTail(result);
-
-        return result.toString();
-    }
-
-    private static String handleRainbow(String text) {
-        Matcher matcher = RAINBOW_PATTERN.matcher(text);
-        StringBuffer result = new StringBuffer();
-
-        while (matcher.find()) {
-            String content = matcher.group(1);
-            String rainbowText = createRainbowColorCodes(content);
-            matcher.appendReplacement(result, Matcher.quoteReplacement(rainbowText));
-        }
-        matcher.appendTail(result);
-
-        return result.toString();
-    }
-
-    private static String createGradientColorCodes(String text, String startHex, String endHex) {
-        if (text.isEmpty()) return text;
-
-        int startColor = Integer.parseInt(startHex, 16);
-        int endColor = Integer.parseInt(endHex, 16);
-
-        int startR = (startColor >> 16) & 0xFF;
-        int startG = (startColor >> 8) & 0xFF;
-        int startB = startColor & 0xFF;
-
-        int endR = (endColor >> 16) & 0xFF;
-        int endG = (endColor >> 8) & 0xFF;
-        int endB = endColor & 0xFF;
-
-        StringBuilder result = new StringBuilder();
-        int length = text.length();
-
-        for (int i = 0; i < length; i++) {
-            char c = text.charAt(i);
-
-            if (c == ' ') {
-                result.append(c);
-                continue;
-            }
-
-            float ratio = length > 1 ? (float) i / (length - 1) : 0;
-
-            int r = (int) (startR + (endR - startR) * ratio);
-            int g = (int) (startG + (endG - startG) * ratio);
-            int b = (int) (startB + (endB - startB) * ratio);
-
-            result.append(String.format("&#%02X%02X%02X", r, g, b));
-            result.append(c);
+        Component cached = CACHE.get(text);
+        if (cached != null) {
+            return cached;
         }
 
-        return result.toString();
+        Component parsed = build(text);
+        if (CACHE.size() >= CACHE_LIMIT) {
+            CACHE.clear();
+        }
+        CACHE.put(text, parsed);
+        return parsed;
     }
 
-    private static String createRainbowColorCodes(String text) {
-        if (text.isEmpty()) return text;
+    /** Drops cached components. Call whenever the config is (re)loaded. */
+    public static void invalidateCache() {
+        CACHE.clear();
+    }
 
-        StringBuilder result = new StringBuilder();
-        int length = text.length();
-
-        int[] rainbowColors = {
-                0xFF0000,
-                0xFF7F00,
-                0xFFFF00,
-                0x00FF00,
-                0x0000FF,
-                0x4B0082,
-                0x9400D3
-        };
-
-        for (int i = 0; i < length; i++) {
-            char c = text.charAt(i);
-
-            if (c == ' ') {
-                result.append(c);
-                continue;
-            }
-
-            // Calculate position in rainbow
-            float ratio = (float) i / length * rainbowColors.length;
-            int colorIndex = (int) ratio;
-            int nextColorIndex = (colorIndex + 1) % rainbowColors.length;
-            float localRatio = ratio - colorIndex;
-
-            // Interpolate between two rainbow colors
-            int color1 = rainbowColors[colorIndex];
-            int color2 = rainbowColors[nextColorIndex];
-
-            int r1 = (color1 >> 16) & 0xFF;
-            int g1 = (color1 >> 8) & 0xFF;
-            int b1 = color1 & 0xFF;
-
-            int r2 = (color2 >> 16) & 0xFF;
-            int g2 = (color2 >> 8) & 0xFF;
-            int b2 = color2 & 0xFF;
-
-            int r = (int) (r1 + (r2 - r1) * localRatio);
-            int g = (int) (g1 + (g2 - g1) * localRatio);
-            int b = (int) (b1 + (b2 - b1) * localRatio);
-
-            result.append(String.format("&#%02X%02X%02X", r, g, b));
-            result.append(c);
+    private static Component build(String text) {
+        List<ColorSpan> spans = ColorSpan.parse(text);
+        if (spans.isEmpty()) {
+            // Nothing but markup, so there is no styled text to show; keep the raw string
+            // rather than silently rendering nothing.
+            return Component.literal(text);
         }
 
-        return result.toString();
-    }
-
-    /**
-     * Parse Minecraft color codes (&c, &4, &#RRGGBB, etc.) into a Component
-     */
-    private static Component parseMinecraftColors(String text) {
         MutableComponent result = Component.empty();
-        StringBuilder currentText = new StringBuilder();
-        Style currentStyle = Style.EMPTY;
-
-        for (int i = 0; i < text.length(); i++) {
-            if (text.charAt(i) == '&' && i + 1 < text.length()) {
-                char code = text.charAt(i + 1);
-
-                // Check for hex color (&#RRGGBB)
-                if (code == '#' && i + 7 < text.length()) {
-                    String hexColor = text.substring(i + 2, i + 8);
-                    try {
-                        int color = Integer.parseInt(hexColor, 16);
-
-                        // Append current text with current style
-                        if (currentText.length() > 0) {
-                            result.append(Component.literal(currentText.toString()).setStyle(currentStyle));
-                            currentText = new StringBuilder();
-                        }
-
-                        // Update style with new color
-                        currentStyle = Style.EMPTY.withColor(TextColor.fromRgb(color));
-                        i += 7; // Skip the &#RRGGBB
-                        continue;
-                    } catch (NumberFormatException e) {
-                        // Invalid hex, treat as normal text
-                        currentText.append('&');
-                        continue;
-                    }
-                }
-
-                // Handle standard Minecraft color codes and formatting
-                ChatFormatting formatting = getFormattingByCode(code);
-                if (formatting != null) {
-                    // Append current text with current style
-                    if (currentText.length() > 0) {
-                        result.append(Component.literal(currentText.toString()).setStyle(currentStyle));
-                        currentText = new StringBuilder();
-                    }
-
-                    // Update style
-                    if (formatting.isColor()) {
-                        currentStyle = Style.EMPTY.withColor(formatting);
-                    } else if (formatting == ChatFormatting.BOLD) {
-                        currentStyle = currentStyle.withBold(true);
-                    } else if (formatting == ChatFormatting.ITALIC) {
-                        currentStyle = currentStyle.withItalic(true);
-                    } else if (formatting == ChatFormatting.UNDERLINE) {
-                        currentStyle = currentStyle.withUnderlined(true);
-                    } else if (formatting == ChatFormatting.STRIKETHROUGH) {
-                        currentStyle = currentStyle.withStrikethrough(true);
-                    } else if (formatting == ChatFormatting.OBFUSCATED) {
-                        currentStyle = currentStyle.withObfuscated(true);
-                    } else if (formatting == ChatFormatting.RESET) {
-                        currentStyle = Style.EMPTY;
-                    }
-
-                    i++;
-                    continue;
-                }
-            }
-
-            currentText.append(text.charAt(i));
+        for (ColorSpan span : spans) {
+            result.append(Component.literal(span.text()).setStyle(styleOf(span)));
         }
-
-        // Append any remaining text
-        if (currentText.length() > 0) {
-            result.append(Component.literal(currentText.toString()).setStyle(currentStyle));
-        }
-
-        return result.getSiblings().isEmpty() && result.getContents().toString().isEmpty()
-                ? Component.literal(text)
-                : result;
+        return result;
     }
 
-    /**
-     * Get ChatFormatting by color/format code character
-     */
-    private static ChatFormatting getFormattingByCode(char code) {
-        return switch (code) {
-            case '0' -> ChatFormatting.BLACK;
-            case '1' -> ChatFormatting.DARK_BLUE;
-            case '2' -> ChatFormatting.DARK_GREEN;
-            case '3' -> ChatFormatting.DARK_AQUA;
-            case '4' -> ChatFormatting.DARK_RED;
-            case '5' -> ChatFormatting.DARK_PURPLE;
-            case '6' -> ChatFormatting.GOLD;
-            case '7' -> ChatFormatting.GRAY;
-            case '8' -> ChatFormatting.DARK_GRAY;
-            case '9' -> ChatFormatting.BLUE;
-            case 'a' -> ChatFormatting.GREEN;
-            case 'b' -> ChatFormatting.AQUA;
-            case 'c' -> ChatFormatting.RED;
-            case 'd' -> ChatFormatting.LIGHT_PURPLE;
-            case 'e' -> ChatFormatting.YELLOW;
-            case 'f' -> ChatFormatting.WHITE;
-            case 'k' -> ChatFormatting.OBFUSCATED;
-            case 'l' -> ChatFormatting.BOLD;
-            case 'm' -> ChatFormatting.STRIKETHROUGH;
-            case 'n' -> ChatFormatting.UNDERLINE;
-            case 'o' -> ChatFormatting.ITALIC;
-            case 'r' -> ChatFormatting.RESET;
-            default -> null;
-        };
+    private static Style styleOf(ColorSpan span) {
+        Style style = Style.EMPTY;
+
+        if (span.hasRgb()) {
+            style = style.withColor(TextColor.fromRgb(span.rgb()));
+        } else if (span.hasLegacyColor()) {
+            style = style.withColor(ChatFormatting.getByCode(span.legacyColor()));
+        }
+
+        if (span.bold()) {
+            style = style.withBold(true);
+        }
+        if (span.italic()) {
+            style = style.withItalic(true);
+        }
+        if (span.underlined()) {
+            style = style.withUnderlined(true);
+        }
+        if (span.strikethrough()) {
+            style = style.withStrikethrough(true);
+        }
+        if (span.obfuscated()) {
+            style = style.withObfuscated(true);
+        }
+
+        return style;
     }
 
     /**

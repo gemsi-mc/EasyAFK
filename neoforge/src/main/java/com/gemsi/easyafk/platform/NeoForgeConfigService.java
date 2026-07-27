@@ -1,5 +1,6 @@
 package com.gemsi.easyafk.platform;
 
+import com.gemsi.easyafk.Config;
 import com.gemsi.easyafk.ConfigSchema;
 import com.gemsi.easyafk.EasyAFK;
 import com.gemsi.easyafk.platform.services.IConfigService;
@@ -65,5 +66,6 @@ public class NeoForgeConfigService implements IConfigService {
                 LOGGER.warn("Ignoring invalid EasyAFK config value: {}", e.getMessage());
             }
         }
+        Config.reloaded();
     }
 }
